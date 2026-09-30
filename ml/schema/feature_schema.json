@@ -1,0 +1,15 @@
+{
+  "note": "Starter subset. Extend to all dataset features. Names must match dataset columns exactly.",
+  "features": [
+    {"name": "Age", "label": "Age", "type": "number", "unit": "years", "min": 20, "max": 100, "default": 55, "ref": "n/a"},
+    {"name": "Sex", "label": "Sex", "type": "category", "options": ["Male", "Female"], "default": "Male"},
+    {"name": "BP", "label": "Systolic blood pressure", "type": "number", "unit": "mmHg", "min": 80, "max": 250, "default": 130, "ref": "90-120"},
+    {"name": "PR", "label": "Pulse rate", "type": "number", "unit": "bpm", "min": 40, "max": 140, "default": 72, "ref": "60-100"},
+    {"name": "LDL", "label": "LDL cholesterol", "type": "number", "unit": "mg/dL", "min": 30, "max": 300, "default": 110, "ref": "<100"},
+    {"name": "HDL", "label": "HDL cholesterol", "type": "number", "unit": "mg/dL", "min": 15, "max": 120, "default": 45, "ref": ">40"},
+    {"name": "Typical Chest Pain", "label": "Typical chest pain", "type": "binary", "default": 0},
+    {"name": "ST Elevation", "label": "ST elevation", "type": "binary", "default": 0},
+    {"name": "Tinversion", "label": "T inversion", "type": "binary", "default": 0},
+    {"name": "EF-TTE", "label": "Ejection fraction", "type": "number", "unit": "%", "min": 15, "max": 80, "default": 55, "ref": "55-70"}
+  ]
+}

@@ -1,0 +1,15 @@
+services:
+  backend:
+    build: ./backend
+    ports: ["8000:8000"]
+    environment:
+      REPO_ROOT: /repo
+    volumes:
+      - ./data:/repo/data:ro
+      - ./ml:/repo/ml:ro
+  frontend:
+    build: ./frontend
+    ports: ["5173:5173"]
+    environment:
+      VITE_API_URL: http://localhost:8000
+    depends_on: [backend]
