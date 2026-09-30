@@ -1,0 +1,10 @@
+* text=auto eol=lf
+*.sh text eol=lf
+*.pkl binary
+*.joblib binary
+*.png binary
+*.xlsx binary
+*.jpg binary
+*.jpeg binary
+*.npy binary
+*.h5 binary
