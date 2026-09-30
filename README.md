@@ -5,7 +5,7 @@
 CAD-Vision predicts overall Coronary Artery Disease (CAD) status and stenosis of the three major coronary vessels (LAD, LCX, RCA) from clinical, ECG, laboratory and echocardiographic features. Predictions are mapped onto an interactive 3D heart, with per-patient SHAP explanations in a clinical dashboard.
 
 - **Demo video:** `TODO: YouTube link`
-- **Team:** `TODO: Full name 1, Full name 2, Full name 3, Full name 4`
+- **Team:** `Abir Shandilya, Aditya Ranjan, Jitesh Garg, Ojasv Jain`
 
 ## Features
 
