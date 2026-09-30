@@ -37,7 +37,7 @@ cd cad-vision
 
 ### 2. Get the dataset
 
-Download the **Z-Alizadeh Sani CAD dataset** (`TODO: add exact link the organizers provided`) and place the file in `data/raw/` (`TODO: exact filename`). Check the dataset license before redistributing it.
+Download the **Z-Alizadeh Sani CAD dataset** (`https://archive.ics.uci.edu/dataset/411/extention+of+z`) and place the file in `data/raw/extention of Z-Alizadeh sani dataset.xlsx` (`TODO: exact filename`). Check the dataset license before redistributing it.
 
 ### 3. Backend (Python)
 
