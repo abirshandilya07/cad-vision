@@ -63,26 +63,30 @@ class ModelInputError(ValueError):
 
 
 # --------------------------------------------------------------------------- paths
-def _find_upwards(filename: str, start: Path, levels: int = 4) -> Path | None:
-    for folder in [start, *list(start.parents)[:levels]]:
-        candidate = folder / filename
-        if candidate.is_file():
-            return candidate
-    return None
+# --------------------------------------------------------------------------- paths
+
+# model_store.py lives at:
+# cad-vision/backend/app/services/model_store.py
+#
+# parents[0] -> services
+# parents[1] -> app
+# parents[2] -> backend
+# parents[3] -> cad-vision
+REPO_ROOT = Path(__file__).resolve().parents[3]
+
+DEFAULT_SCHEMA_PATH = REPO_ROOT / "ml" / "schema" / "feature_schema.json"
+DEFAULT_ARTIFACTS_DIR = REPO_ROOT / "ml" / "artifacts" / "models"
 
 
 def _resolve_schema_path(explicit: str | Path | None) -> Path:
-    if explicit:
+    if explicit is not None:
         return Path(explicit)
+
     env = os.getenv("SCHEMA_PATH")
     if env:
         return Path(env)
-    found = _find_upwards("feature_schema.json", Path(__file__).resolve().parent)
-    if found is None:
-        raise FileNotFoundError(
-            "feature_schema.json not found. Put it in the repo root or set SCHEMA_PATH."
-        )
-    return found
+
+    return DEFAULT_SCHEMA_PATH
 
 
 # --------------------------------------------------------------------------- stub
@@ -129,13 +133,18 @@ class ModelStore:
              artifacts_dir: str | Path | None = None) -> "ModelStore":
         """Build the store. A missing schema is fatal; missing artifacts are not."""
         path = _resolve_schema_path(schema_path)
+        if not path.is_file():
+            raise FileNotFoundError(
+                f"Feature schema not found at {path}"
+            )
+
         schema = json.loads(path.read_text(encoding="utf-8"))
 
         if artifacts_dir is None:
-            artifacts_dir = os.getenv("ARTIFACTS_DIR") or (path.parent / "artifacts")
+            artifacts_dir = os.getenv("ARTIFACTS_DIR") or DEFAULT_ARTIFACTS_DIR
 
         store = cls(schema, Path(artifacts_dir))
-        store._load_models()
+        store._load_models()    
         return store
 
     def _load_models(self) -> None:
