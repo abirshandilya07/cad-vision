@@ -1,3 +1,4 @@
+import HeartScene from "./scene/HeartScene";
 import { useEffect, useState } from "react";
 
 const API = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
@@ -21,11 +22,7 @@ export default function App() {
       </div>
       <h1>CAD-Vision</h1>
       {!result ? <p>Loading...</p> : (
-        <ul>
-          <li>Overall CAD: {(result.cad.probability * 100).toFixed(0)}%</li>
-          {(["LAD", "LCX", "RCA"] as const).map(v =>
-            <li key={v}>{v}: {(result.vessels[v].probability * 100).toFixed(0)}%</li>)}
-        </ul>
+        <HeartScene vessels={result.vessels} />
       )}
     </div>
   );
