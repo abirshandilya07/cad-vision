@@ -4,6 +4,28 @@
   font-weight: 100 900;
 }
 
+:root {
+  --bg-app: #2d2d2d;
+  --bg-panel: #f8f9f7;
+  --bg-canvas: #f3f3f3;
+  --bg-active: #ffffff;
+  --text-primary: #151a18;
+  --text-secondary: #6b7a78;
+  --border-color: #151a18;
+  --grid-line: #d9dedb;
+}
+
+[data-theme="dark"] {
+  --bg-app: #121212;
+  --bg-panel: #22252a;
+  --bg-canvas: #1a1c21;
+  --bg-active: #2d3139;
+  --text-primary: #f8f9f7;
+  --text-secondary: #9ca3af;
+  --border-color: #4b5563;
+  --grid-line: #374151;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -12,10 +34,11 @@
 
 body {
   font-family: 'Sudo Var', monospace;
-  background-color: #2d2d2d; 
-  color: #151a18;
+  background-color: var(--bg-app); 
+  color: var(--text-primary);
   min-height: 100vh;
   overflow: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .app-wrapper {
@@ -83,6 +106,11 @@ body {
   font-family: 'Ropa Sans', sans-serif;
   font-size: 18px;
   cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.nav-btn:hover {
+  background-color: #2a2d35;
 }
 
 .nav-btn-primary {
@@ -100,19 +128,20 @@ body {
 }
 
 .canvas-panel {
-  background-color: #f3f3f3;
+  background-color: var(--bg-canvas);
   border-radius: 11px;
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: background-color 0.3s ease;
 }
 
 .selected-overlay {
   position: absolute;
   bottom: 24px;
   left: 24px;
-  background-color: rgba(26, 28, 33, 0.46);
+  background-color: rgba(26, 28, 33, 0.6);
   border-radius: 22px;
   padding: 16px 24px;
 }
@@ -126,20 +155,21 @@ body {
 }
 
 .panel-card {
-  background-color: #f8f9f7;
+  background-color: var(--bg-panel);
   border-radius: 6px;
-  outline: 1px solid #151a18;
+  outline: 1px solid var(--border-color);
   outline-offset: -1px;
-  box-shadow: 0 8px 24px -4px rgba(16, 21, 18, 0.09);
+  box-shadow: 0 8px 24px -4px rgba(0,0,0, 0.2);
   padding: 24px;
   display: flex;
   flex-direction: column;
+  transition: background-color 0.3s ease, outline-color 0.3s ease;
 }
 
 .panel-title {
   font-size: 36px;
   font-weight: 700;
-  color: #151a18;
+  color: var(--text-primary);
 }
 
 /* Vessel Cards Grid */
@@ -150,17 +180,18 @@ body {
 }
 
 .vessel-card {
-  background-color: #f8f9f7;
+  background-color: var(--bg-panel);
   border-radius: 6px;
-  outline: 1px solid #151a18;
+  outline: 1px solid var(--border-color);
   outline-offset: -1px;
-  box-shadow: 0 8px 24px -4px rgba(16, 21, 18, 0.09);
+  box-shadow: 0 8px 24px -4px rgba(0,0,0, 0.2);
   padding: 20px;
   position: relative;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  transition: background-color 0.3s ease, outline-color 0.3s ease;
 }
 
 .tech-rail {
@@ -173,7 +204,7 @@ body {
 
 .grid-line {
   height: 1px;
-  background-color: #d9dedb;
+  background-color: var(--grid-line);
   margin: 4px 0;
 }
 
@@ -189,11 +220,12 @@ body {
   width: 160px;
   font-size: 14px;
   font-weight: 700;
+  color: var(--text-primary);
 }
 
 .shap-sub {
   font-size: 11px;
-  color: #6b7a78;
+  color: var(--text-secondary);
   display: block;
   font-weight: 400;
   margin-top: 2px;
@@ -212,14 +244,15 @@ body {
   min-height: 16px;
 }
 
-/* The central line is formed by the right border of the negative container */
 .shap-neg-container {
   justify-content: flex-end;
-  border-right: 3px solid #151a18;
+  border-right: 3px solid var(--border-color);
+  padding-right: 8px;
 }
 
 .shap-pos-container {
   justify-content: flex-start;
+  padding-left: 8px;
 }
 
 .shap-bar {

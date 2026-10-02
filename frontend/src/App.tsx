@@ -1,8 +1,18 @@
 import { useState } from "react";
+import { BarChart3, Settings, Scale, Sun, Moon } from "lucide-react";
 
 export default function App() {
   const [showBanner, setShowBanner] = useState(true);
   const [selectedVessel, setSelectedVessel] = useState<"LAD" | "LCX" | "RCA">("LAD");
+  
+  // Theme Toggle State
+  const [isDark, setIsDark] = useState(false);
+
+  const toggleTheme = () => {
+    const newTheme = !isDark;
+    setIsDark(newTheme);
+    document.documentElement.setAttribute('data-theme', newTheme ? 'dark' : 'light');
+  };
 
   const overallRisk = 68;
   const vessels = {
@@ -42,9 +52,22 @@ export default function App() {
       <header className="top-bar">
         <div className="cad-vision">CAD - Vision</div>
         <div className="nav-controls">
-          <button className="nav-btn">📊 Load sample patient</button>
-          <button className="nav-btn">⚙ Adjust parameters</button>
-          <button className="nav-btn nav-btn-primary">⚖️ Run Prediction</button>
+          <button className="nav-btn" onClick={toggleTheme} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            {isDark ? <Sun size={18} /> : <Moon size={18} />}
+            {isDark ? "Light" : "Dark"}
+          </button>
+          
+          <button className="nav-btn" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <BarChart3 size={18} /> Load sample patient
+          </button>
+          
+          <button className="nav-btn" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <Settings size={18} /> Adjust parameters
+          </button>
+          
+          <button className="nav-btn nav-btn-primary" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <Scale size={18} /> Run Prediction
+          </button>
         </div>
       </header>
 
@@ -52,7 +75,7 @@ export default function App() {
       <main className="main-grid">
         {/* Left Canvas */}
         <section className="canvas-panel">
-          <div style={{ color: "#4b5563", fontSize: "20px" }}>🫀 [Member C: 3D Heart Canvas]</div>
+          <div style={{ color: "var(--text-secondary)", fontSize: "20px" }}>🫀 [Member C: 3D Heart Canvas]</div>
           <div className="selected-overlay">
             <div style={{ fontSize: "28px", color: "#ffffff", marginBottom: "8px" }}>
               Selected: <span style={{ color: vessels[selectedVessel].color }}>{vessels[selectedVessel].name}</span>
@@ -75,7 +98,7 @@ export default function App() {
                 <div style={{ fontSize: "10px", color: "#d33f38", fontWeight: 700, letterSpacing: "1px" }}>ELEVATED RISK</div>
               </div>
             </div>
-            <div style={{ height: "1px", backgroundColor: "#d9dedb", margin: "16px 0" }} />
+            <div className="grid-line" style={{ margin: "16px 0" }} />
 
             <div style={{ position: "relative", width: "100%", maxWidth: "600px", margin: "0 auto", marginTop: "16px" }}>
               <svg width="100%" viewBox="140 80 456 235" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -101,16 +124,15 @@ export default function App() {
                 <path d="M402.4 100.8C412.2 102.4 421.8 104.7 431.3 107.7L423.4 132.5C415.2 129.9 406.7 127.9 398.2 126.4L402.4 100.8Z" fill="#D33F38"/>
                 <path d="M372.9 98C381.7 98.2 390.5 99 399.2 100.3L395.3 126C387.7 124.8 380 124.2 372.3 124L372.9 98Z" fill="#D33F38"/>
                 
-                <path d="M468.6 155.4L470.1 164.7L383.6 289.3L459.5 158L468.6 155.4Z" fill="#FFC145" stroke="#151A18" strokeWidth="1.5"/>
-                <circle cx="368" cy="308" r="15.5" fill="#151A18" />
+                <path d="M468.6 155.4L470.1 164.7L383.6 289.3L459.5 158L468.6 155.4Z" fill="#FFC145" stroke="var(--text-primary)" strokeWidth="1.5"/>
+                <circle cx="368" cy="308" r="15.5" fill="var(--text-primary)" />
                 <circle cx="368" cy="308" r="6" fill="#FFC145"/>
 
-                {/* Adjusted coordinates strictly to hug the inner arc radius */}
-                <text x="200" y="295" textAnchor="middle" fontSize="13" fill="#151A18" fontWeight="700">0%</text>
-                <text x="245" y="195" textAnchor="middle" fontSize="13" fill="#151A18" fontWeight="700">25</text>
-                <text x="368" y="145" textAnchor="middle" fontSize="13" fill="#151A18" fontWeight="700">50</text>
-                <text x="491" y="195" textAnchor="middle" fontSize="13" fill="#151A18" fontWeight="700">75</text>
-                <text x="536" y="295" textAnchor="middle" fontSize="13" fill="#151A18" fontWeight="700">100%</text>
+                <text x="218" y="282" textAnchor="middle" fontSize="13" fill="var(--text-primary)" fontWeight="700">0%</text>
+                <text x="265" y="210" textAnchor="middle" fontSize="13" fill="var(--text-primary)" fontWeight="700">25</text>
+                <text x="368" y="145" textAnchor="middle" fontSize="13" fill="var(--text-primary)" fontWeight="700">50</text>
+                <text x="471" y="210" textAnchor="middle" fontSize="13" fill="var(--text-primary)" fontWeight="700">75</text>
+                <text x="518" y="282" textAnchor="middle" fontSize="13" fill="var(--text-primary)" fontWeight="700">100%</text>
               </svg>
             </div>
             
@@ -129,14 +151,14 @@ export default function App() {
                 <div key={key} className="vessel-card" onClick={() => setSelectedVessel(key)}
                   style={{ 
                     border: isActive ? `2px solid ${v.color}` : `none`,
-                    backgroundColor: isActive ? "#ffffff" : "#F8F9F7"
+                    backgroundColor: isActive ? "var(--bg-active)" : "var(--bg-panel)"
                   }}>
                   <div className="tech-rail" style={{ backgroundColor: v.color }}></div>
                   
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div>
                       <div style={{ fontSize: "28px", fontWeight: 700 }}>{v.name}</div>
-                      <div style={{ fontSize: "10px", color: "#6b7a78", fontWeight: 700 }}>{v.sub}</div>
+                      <div style={{ fontSize: "10px", color: "var(--text-secondary)", fontWeight: 700 }}>{v.sub}</div>
                     </div>
                   </div>
                   
@@ -147,7 +169,7 @@ export default function App() {
                       <span style={{ fontSize: "56px", fontWeight: 700, lineHeight: 1 }}>{v.prob}</span>
                       <span style={{ fontSize: "24px", color: v.color }}>%</span>
                     </div>
-                    <div style={{ textAlign: "right", fontSize: "10px", color: "#6b7a78" }}>
+                    <div style={{ textAlign: "right", fontSize: "10px", color: "var(--text-secondary)" }}>
                       <div style={{ color: v.color, fontWeight: 700, textTransform: "uppercase" }}>{v.level}</div>
                       <div>{v.seg}</div>
                       <div>{v.conf}</div>
@@ -156,7 +178,7 @@ export default function App() {
 
                   <div className="grid-line"></div>
                   
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", fontWeight: 700, color: "#6b7a78" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", fontWeight: 700, color: "var(--text-secondary)" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                       <div style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: v.color }}></div>
                       <span style={{ color: v.color }}>{v.status}</span>
@@ -171,7 +193,7 @@ export default function App() {
           {/* Bottom Panel: SHAP Feature Importance */}
           <div className="panel-card" style={{ flex: 1 }}>
             <div className="panel-title">SHAP Feature Importance</div>
-            <div style={{ height: "1px", backgroundColor: "#d9dedb", margin: "16px 0" }} />
+            <div className="grid-line" style={{ margin: "16px 0" }} />
             
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#168a55", fontWeight: 700, marginBottom: "16px" }}>
               <span>← DECREASES RISK</span>
@@ -179,8 +201,6 @@ export default function App() {
             </div>
             
             <div style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative" }}>
-              
-              {/* Zero Marker strictly positioned over the central line */}
               <div style={{ position: "absolute", left: "calc(160px + 50% - 4px)", top: "-18px", fontSize: "12px", fontWeight: 700 }}>0</div>
 
               {shapFeatures.map((f, i) => (
@@ -191,22 +211,20 @@ export default function App() {
                   </div>
                   
                   <div className="shap-track">
-                    {/* Left (Negative) Container */}
                     <div className="shap-neg-container">
                       {f.dir === "neg" && (
                         <>
-                          <span style={{ fontSize: "12px", color: "#168a55", marginRight: "8px" }}>{f.val}</span>
+                          <span style={{ fontSize: "12px", color: "#168a55" }}>{f.val}</span>
                           <div className="shap-bar shap-bar-neg" style={{ width: f.width }} />
                         </>
                       )}
                     </div>
                     
-                    {/* Right (Positive) Container */}
                     <div className="shap-pos-container">
                       {f.dir === "pos" && (
                         <>
                           <div className="shap-bar shap-bar-pos" style={{ width: f.width }} />
-                          <span style={{ fontSize: "12px", color: "#d33f38", marginLeft: "8px" }}>{f.val}</span>
+                          <span style={{ fontSize: "12px", color: "#d33f38" }}>{f.val}</span>
                         </>
                       )}
                     </div>
@@ -215,10 +233,10 @@ export default function App() {
               ))}
             </div>
             
-            <div style={{ height: "1px", backgroundColor: "#d9dedb", margin: "16px 0" }} />
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#6b7a78" }}>
+            <div className="grid-line" style={{ margin: "16px 0" }} />
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--text-secondary)" }}>
               <span>SHAP values based on XGBoost model output · Positive = Increases predicted stenosis probability</span>
-              <span style={{ fontWeight: 700, color: "#151a18" }}>BASE: 0.50</span>
+              <span style={{ fontWeight: 700, color: "var(--text-primary)" }}>BASE: 0.50</span>
             </div>
           </div>
 
