@@ -77,9 +77,8 @@ export default function App() {
             </div>
             <div style={{ height: "1px", backgroundColor: "#d9dedb", margin: "16px 0" }} />
 
-            <div style={{ position: "relative", width: "100%", maxWidth: "560px", margin: "0 auto", marginTop: "16px" }}>
-              {/* Responsive SVG Gauge */}
-              <svg width="100%" viewBox="50 40 634 320" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <div style={{ position: "relative", width: "100%", maxWidth: "600px", margin: "0 auto", marginTop: "16px" }}>
+              <svg width="100%" viewBox="140 80 456 235" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M336.7 100.3C345.4 99 354.2 98.2 363 98L363.6 124C355.9 124.2 348.2 124.8 340.6 126L336.7 100.3Z" fill="#168A55"/>
                 <path d="M304.6 107.7C314.1 104.7 323.7 102.4 333.5 100.8L337.7 126.4C329.2 127.9 320.7 129.9 312.5 132.5L304.6 107.7Z" fill="#168A55"/>
                 <path d="M274.1 120.1C282.9 115.7 292.1 111.9 301.5 108.7L309.7 133.4C301.5 136.2 293.5 139.5 285.7 143.4L274.1 120.1Z" fill="#168A55"/>
@@ -106,15 +105,16 @@ export default function App() {
                 <circle cx="368" cy="308" r="15.5" fill="#151A18" />
                 <circle cx="368" cy="308" r="6" fill="#FFC145"/>
 
-                <text x="166" y="288" fontSize="12" fill="#151A18" fontWeight="700">0%</text>
-                <text x="212" y="177" fontSize="12" fill="#151A18" fontWeight="700">25</text>
-                <text x="323" y="131" fontSize="12" fill="#151A18" fontWeight="700">50</text>
-                <text x="434" y="177" fontSize="12" fill="#151A18" fontWeight="700">75</text>
-                <text x="530" y="288" fontSize="12" fill="#151A18" fontWeight="700">100%</text>
+                {/* Adjusted coordinates strictly to hug the inner arc radius */}
+                <text x="200" y="295" textAnchor="middle" fontSize="13" fill="#151A18" fontWeight="700">0%</text>
+                <text x="245" y="195" textAnchor="middle" fontSize="13" fill="#151A18" fontWeight="700">25</text>
+                <text x="368" y="145" textAnchor="middle" fontSize="13" fill="#151A18" fontWeight="700">50</text>
+                <text x="491" y="195" textAnchor="middle" fontSize="13" fill="#151A18" fontWeight="700">75</text>
+                <text x="536" y="295" textAnchor="middle" fontSize="13" fill="#151A18" fontWeight="700">100%</text>
               </svg>
             </div>
             
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: "-30px", fontSize: "12px", fontWeight: 700 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: "0px", fontSize: "12px", fontWeight: 700 }}>
               <span style={{ color: "#168A55" }}>— LOW RISK</span>
               <span style={{ color: "#D33F38" }}>HIGH RISK —</span>
             </div>
@@ -173,12 +173,16 @@ export default function App() {
             <div className="panel-title">SHAP Feature Importance</div>
             <div style={{ height: "1px", backgroundColor: "#d9dedb", margin: "16px 0" }} />
             
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "#168a55", fontWeight: 700, marginBottom: "16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#168a55", fontWeight: 700, marginBottom: "16px" }}>
               <span>← DECREASES RISK</span>
               <span style={{ color: "#d33f38" }}>INCREASES RISK →</span>
             </div>
             
-            <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative" }}>
+              
+              {/* Zero Marker strictly positioned over the central line */}
+              <div style={{ position: "absolute", left: "calc(160px + 50% - 4px)", top: "-18px", fontSize: "12px", fontWeight: 700 }}>0</div>
+
               {shapFeatures.map((f, i) => (
                 <div key={i} className="shap-row">
                   <div className="shap-label">
@@ -187,21 +191,23 @@ export default function App() {
                   </div>
                   
                   <div className="shap-track">
+                    {/* Left (Negative) Container */}
                     <div className="shap-neg-container">
                       {f.dir === "neg" && (
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px", width: f.width, justifyContent: "flex-end" }}>
-                          <span style={{ fontSize: "10px", color: "#168a55" }}>{f.val}</span>
-                          <div style={{ background: "#168A55", width: "100%", height: "10px", borderRadius: "2px" }} />
-                        </div>
+                        <>
+                          <span style={{ fontSize: "12px", color: "#168a55", marginRight: "8px" }}>{f.val}</span>
+                          <div className="shap-bar shap-bar-neg" style={{ width: f.width }} />
+                        </>
                       )}
                     </div>
                     
+                    {/* Right (Positive) Container */}
                     <div className="shap-pos-container">
                       {f.dir === "pos" && (
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px", width: f.width }}>
-                          <div style={{ background: "#D33F38", width: "100%", height: "10px", borderRadius: "2px" }} />
-                          <span style={{ fontSize: "10px", color: "#d33f38" }}>{f.val}</span>
-                        </div>
+                        <>
+                          <div className="shap-bar shap-bar-pos" style={{ width: f.width }} />
+                          <span style={{ fontSize: "12px", color: "#d33f38", marginLeft: "8px" }}>{f.val}</span>
+                        </>
                       )}
                     </div>
                   </div>
@@ -210,7 +216,7 @@ export default function App() {
             </div>
             
             <div style={{ height: "1px", backgroundColor: "#d9dedb", margin: "16px 0" }} />
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "#6b7a78" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#6b7a78" }}>
               <span>SHAP values based on XGBoost model output · Positive = Increases predicted stenosis probability</span>
               <span style={{ fontWeight: 700, color: "#151a18" }}>BASE: 0.50</span>
             </div>

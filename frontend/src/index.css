@@ -12,7 +12,7 @@
 
 body {
   font-family: 'Sudo Var', monospace;
-  background-color: #2d2d2d; /* Figma dark background */
+  background-color: #2d2d2d; 
   color: #151a18;
   min-height: 100vh;
   overflow: hidden;
@@ -99,7 +99,6 @@ body {
   min-height: 0;
 }
 
-/* Left Canvas */
 .canvas-panel {
   background-color: #f3f3f3;
   border-radius: 11px;
@@ -118,7 +117,6 @@ body {
   padding: 16px 24px;
 }
 
-/* Right Dashboard */
 .dashboard-grid {
   display: flex;
   flex-direction: column;
@@ -184,19 +182,21 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 
 .shap-label {
-  width: 140px;
-  font-size: 12px;
+  width: 160px;
+  font-size: 14px;
   font-weight: 700;
 }
 
 .shap-sub {
-  font-size: 10px;
+  font-size: 11px;
   color: #6b7a78;
   display: block;
+  font-weight: 400;
+  margin-top: 2px;
 }
 
 .shap-track {
@@ -209,15 +209,29 @@ body {
   width: 50%;
   display: flex;
   align-items: center;
+  min-height: 16px;
 }
 
+/* The central line is formed by the right border of the negative container */
 .shap-neg-container {
   justify-content: flex-end;
-  border-right: 1px solid #151a18;
-  padding-right: 8px;
+  border-right: 1.5px solid #151a18;
 }
 
 .shap-pos-container {
   justify-content: flex-start;
-  padding-left: 8px;
+}
+
+.shap-bar {
+  height: 14px;
+}
+
+.shap-bar-neg {
+  background-color: #168A55;
+  border-radius: 2px 0 0 2px;
+}
+
+.shap-bar-pos {
+  background-color: #D33F38;
+  border-radius: 0 2px 2px 0;
 }
