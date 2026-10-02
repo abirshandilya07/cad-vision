@@ -5,11 +5,11 @@ import os
 from pathlib import Path
 from typing import Dict, Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from .services.model_store import get_store
-
+from .services.model_store import get_store,ModelInputError
+from fastapi.responses import JSONResponse
 ROOT = Path(os.getenv("REPO_ROOT", Path(__file__).resolve().parents[2]))
 SCHEMA_PATH = ROOT / "ml" / "schema" / "feature_schema.json"
 SAMPLES_DIR = ROOT / "data" / "samples"
@@ -17,7 +17,17 @@ SAMPLES_DIR = ROOT / "data" / "samples"
 app = FastAPI(title="CAD-Vision API", version="0.1.0-stub")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-
+@app.exception_handler(ModelInputError)
+async def model_input_error_handler(
+    request: Request,
+    exc: ModelInputError,
+):
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": str(exc)
+        },
+    )
 class PredictRequest(BaseModel):
     features: Dict[str, Any]
 
