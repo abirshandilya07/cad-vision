@@ -38,7 +38,7 @@ body {
 }
 
 .disclaimer-text {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Ropa Sans', sans-serif;
   font-size: 14px;
   font-weight: 500;
   color: #991b1b;
@@ -49,7 +49,7 @@ body {
   outline: 1px solid #fca5a5;
   border-radius: 14px;
   padding: 4px 16px;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Ropa Sans', sans-serif;
   font-size: 12px;
   font-weight: 600;
   color: #991b1b;
@@ -64,7 +64,7 @@ body {
 }
 
 .cad-vision {
-  font-family: 'Ropa Sans', sans-serif;
+  font-family: 'Sudo Var', sans-serif;
   font-size: 42px;
   color: #ffffff;
 }
@@ -215,7 +215,7 @@ body {
 /* The central line is formed by the right border of the negative container */
 .shap-neg-container {
   justify-content: flex-end;
-  border-right: 1.5px solid #151a18;
+  border-right: 3px solid #151a18;
 }
 
 .shap-pos-container {
