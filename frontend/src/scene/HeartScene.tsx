@@ -1,6 +1,8 @@
 import { Canvas } from "@react-three/fiber";
 import { Bounds, Center, OrbitControls, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
+import { vesselPaths } from "./vesselPaths";
+import CoordinateTest from "./CoordinateTest";
 
 type VesselPrediction = {
   probability: number;
@@ -14,9 +16,63 @@ type HeartSceneProps = {
     RCA: VesselPrediction;
   };
 };
+function DebugPoints() {
+  const points = [
+    ...vesselPaths.LAD.getPoints(3),
+    ...vesselPaths.LCX.getPoints(3),
+    ...vesselPaths.RCA.getPoints(3),
+  ];
 
+  return (
+    <>
+      {points.map((point, index) => (
+        <mesh key={index} position={point}>
+          <sphereGeometry args={[0.03, 16, 16]} />
+          <meshBasicMaterial color="red" />
+        </mesh>
+      ))}
+    </>
+  );
+}
 function HeartModel() {
-  const { scene } = useGLTF("/models/heart.glb");
+  const { scene } = useGLTF("/models/heart_markers.glb");
+
+  // Find our Blender markers
+  const markerNames = [
+    "LAD_01", "LAD_02", "LAD_03", "LAD_04",
+    "LAD_05", "LAD_06", "LAD_07",
+
+    "LCX_01", "LCX_02", "LCX_03", "LCX_04", "LCX_05",
+
+    "RCA_01", "RCA_02", "RCA_03", "RCA_04",
+    "RCA_05", "RCA_06",
+  ];
+
+  const markerGeometry = new THREE.SphereGeometry(0.015, 16, 16);
+  const markerMaterial = new THREE.MeshBasicMaterial({
+    color: "lime",
+  });
+
+  markerNames.forEach((name) => {
+    const marker = scene.getObjectByName(name);
+
+    if (marker) {
+      const sphere = new THREE.Mesh(
+        markerGeometry,
+        markerMaterial
+      );
+
+      marker.add(sphere);
+
+      console.log(
+        name,
+        "position:",
+        marker.position.toArray()
+      );
+    } else {
+      console.warn("Marker not found:", name);
+    }
+  });
 
   return (
     <Center>
@@ -59,6 +115,8 @@ export default function HeartScene({ vessels }: HeartSceneProps) {
         <Bounds fit clip observe margin={1.2}>
           <HeartModel />
         </Bounds>
+
+        <CoordinateTest/>
 
         <OrbitControls
           enableDamping
