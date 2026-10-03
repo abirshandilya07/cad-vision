@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Bounds, Center, OrbitControls, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
@@ -39,6 +39,9 @@ function DebugPoints() {
 function HeartModel({ vessels, selectedVessel }: HeartSceneProps) {
   const { scene } = useGLTF("/models/heart_markers.glb");
   
+  const [hoveredVessel, setHoveredVessel] = useState<
+    "LAD" | "LCX" | "RCA" | null
+  >(null);
 
   const ladMaterialRef = useRef<THREE.MeshStandardMaterial | null>(null);
   const lcxMaterialRef = useRef<THREE.MeshStandardMaterial | null>(null);
@@ -59,6 +62,7 @@ function HeartModel({ vessels, selectedVessel }: HeartSceneProps) {
     rcaMaterialRef.current.opacity = selectedVessel === "RCA" ? 1.0 : 0.25;
   }, [selectedVessel]);
 
+
   useFrame((_, delta) => {
     if (
       !ladMaterialRef.current ||
@@ -68,9 +72,33 @@ function HeartModel({ vessels, selectedVessel }: HeartSceneProps) {
       return;
     }
 
-    const ladTarget = selectedVessel === "LAD" ? 1.0 : 0.25;
-    const lcxTarget = selectedVessel === "LCX" ? 1.0 : 0.25;
-    const rcaTarget = selectedVessel === "RCA" ? 1.0 : 0.25;
+  // rest of your code...
+    const ladTarget =
+      hoveredVessel === "LAD"
+        ? 1.0
+        : hoveredVessel
+          ? 0.25
+          : selectedVessel === "LAD"
+            ? 1.0
+            : 0.25;
+
+    const lcxTarget =
+      hoveredVessel === "LCX"
+        ? 1.0
+        : hoveredVessel
+          ? 0.25
+          : selectedVessel === "LCX"
+            ? 1.0
+            : 0.25;
+
+    const rcaTarget =
+      hoveredVessel === "RCA"
+        ? 1.0
+        : hoveredVessel
+          ? 0.25
+          : selectedVessel === "RCA"
+            ? 1.0
+            : 0.25;
 
     ladMaterialRef.current.opacity = THREE.MathUtils.damp(
       ladMaterialRef.current.opacity,
@@ -92,6 +120,9 @@ function HeartModel({ vessels, selectedVessel }: HeartSceneProps) {
       4,
       delta
     );
+    if (hoveredVessel) {
+      
+}
   });
   // useFrame(() => {
   //   const targets = {
@@ -168,137 +199,201 @@ function HeartModel({ vessels, selectedVessel }: HeartSceneProps) {
 
   // Get the marker positions in world space,
   // then convert them back into the GLB scene's local space.
-  const ladPoints = LAD_NAMES
-    .map((name) => scene.getObjectByName(name))
-    .filter((marker): marker is THREE.Object3D => marker !== undefined)
-    .map((marker) => {
-      const worldPosition = new THREE.Vector3();
+  const ladPoints = useMemo(
+  () =>
+    LAD_NAMES
+      .map((name) => scene.getObjectByName(name))
+      .filter((marker): marker is THREE.Object3D => marker !== undefined)
+      .map((marker) => {
+        const worldPosition = new THREE.Vector3();
+        marker.getWorldPosition(worldPosition);
+        return scene.worldToLocal(worldPosition.clone());
+      }),
+  [scene]
+);
 
-      marker.getWorldPosition(worldPosition);
+const lcxPoints = useMemo(
+  () =>
+    LCX_NAMES
+      .map((name) => scene.getObjectByName(name))
+      .filter((marker): marker is THREE.Object3D => marker !== undefined)
+      .map((marker) => {
+        const worldPosition = new THREE.Vector3();
+        marker.getWorldPosition(worldPosition);
+        return worldPosition;
+      }),
+  [scene]
+);
 
-      return scene.worldToLocal(worldPosition.clone());
-    });
-  
-  const lcxPoints = LCX_NAMES
-    .map((name) => scene.getObjectByName(name))
-    .filter((marker): marker is THREE.Object3D => marker !== undefined)
-    .map((marker) => {
-      const worldPosition = new THREE.Vector3();
-
-      marker.getWorldPosition(worldPosition);
-
-      return worldPosition;
-  });
-
-  const rcaPoints = RCA_NAMES
-    .map((name) => scene.getObjectByName(name))
-    .filter((marker): marker is THREE.Object3D => marker !== undefined)
-    .map((marker) => {
-      const worldPosition = new THREE.Vector3();
-
-      marker.getWorldPosition(worldPosition);
-
-      return worldPosition;
-  });
+const rcaPoints = useMemo(
+  () =>
+    RCA_NAMES
+      .map((name) => scene.getObjectByName(name))
+      .filter((marker): marker is THREE.Object3D => marker !== undefined)
+      .map((marker) => {
+        const worldPosition = new THREE.Vector3();
+        marker.getWorldPosition(worldPosition);
+        return worldPosition;
+      }),
+  [scene]
+);
   // Create a smooth curve through our Blender points.
-  const ladCurve = new THREE.CatmullRomCurve3(
-    ladPoints,
-    false,
-    "catmullrom",
-    0.5
-  );
+  const ladCurve = useMemo(
+  () =>
+    new THREE.CatmullRomCurve3(
+      ladPoints,
+      false,
+      "catmullrom",
+      0.5
+    ),
+  [ladPoints]
+);
 
-  const lcxCurve = new THREE.CatmullRomCurve3(
-    lcxPoints,
-    false,
-    "centripetal",
-    0.5
-  );
-  const rcaCurve = new THREE.CatmullRomCurve3(
-    rcaPoints,
-    false,
-    "centripetal",
-    0.5
+const lcxCurve = useMemo(
+  () =>
+    new THREE.CatmullRomCurve3(
+      lcxPoints,
+      false,
+      "centripetal",
+      0.5
+    ),
+  [lcxPoints]
+);
+
+const rcaCurve = useMemo(
+  () =>
+    new THREE.CatmullRomCurve3(
+      rcaPoints,
+      false,
+      "centripetal",
+      0.5
+    ),
+  [rcaPoints]
 );
 
   // Turn the curve into a 3D tube.
-  const ladGeometry = new THREE.TubeGeometry(
-    ladCurve,
-    128,
-    0.008,
-    12,
-    false
+  const ladGeometry = useMemo(
+  () =>
+    new THREE.TubeGeometry(
+      ladCurve,
+      128,
+      0.008,
+      12,
+      false
+    ),
+  [ladCurve]
+);
+
+const lcxGeometry = useMemo(
+  () =>
+    new THREE.TubeGeometry(
+      lcxCurve,
+      128,
+      0.008,
+      12,
+      false
+    ),
+  [lcxCurve]
+);
+
+const rcaGeometry = useMemo(
+  () =>
+    new THREE.TubeGeometry(
+      rcaCurve,
+      128,
+      0.008,
+      12,
+      false
+    ),
+  [rcaCurve]
+);
+  const ladColor = useMemo(
+  () => getRiskColor(vessels.LAD.probability),
+  [vessels.LAD.probability]
+);
+
+  const ladMaterial = useMemo(
+  () => {
+    const material = new THREE.MeshStandardMaterial({
+      color: ladColor,
+      roughness: 0.4,
+      metalness: 0.1,
+      transparent: true,
+      opacity: 1,
+      depthTest: true,
+      depthWrite: false,
+    });
+
+    ladMaterialRef.current = material;
+    return material;
+  },
+  [ladColor]
+);
+
+  const lcxColor = useMemo(
+  () => getRiskColor(vessels.LCX.probability),
+  [vessels.LCX.probability]
+);
+
+  const lcxMaterial = useMemo(
+  () => {
+    const material = new THREE.MeshStandardMaterial({
+      color: lcxColor,
+      roughness: 0.4,
+      metalness: 0.1,
+      transparent: true,
+      opacity: 1,
+      depthTest: true,
+      depthWrite: false,
+    });
+
+    lcxMaterialRef.current = material;
+    return material;
+  },
+  [lcxColor]
+);
+
+
+  const rcaColor = useMemo(
+  () => getRiskColor(vessels.RCA.probability),
+  [vessels.RCA.probability]
+);
+
+  const rcaMaterial = useMemo(
+  () => {
+    const material = new THREE.MeshStandardMaterial({
+      color: rcaColor,
+      roughness: 0.4,
+      metalness: 0.1,
+      transparent: true,
+      opacity: 1,
+      depthTest: true,
+      depthWrite: false,
+    });
+
+    rcaMaterialRef.current = material;
+    return material;
+  },
+  [rcaColor]
+);
+  const ladTube = useMemo(
+    () => new THREE.Mesh(ladGeometry, ladMaterial),
+    [ladGeometry, ladMaterial]
   );
 
-  const lcxGeometry = new THREE.TubeGeometry(
-    lcxCurve,
-    128,
-    0.008,
-    12,
-    false
+  const lcxTube = useMemo(
+    () => new THREE.Mesh(lcxGeometry, lcxMaterial),
+    [lcxGeometry, lcxMaterial]
   );
 
-  const rcaGeometry = new THREE.TubeGeometry(
-    rcaCurve,
-    128,
-    0.008,
-    12,
-    false
-  );
-  const ladColor = getRiskColor(vessels.LAD.probability);
-
-  const ladMaterial = new THREE.MeshStandardMaterial({
-    color: ladColor,
-    roughness: 0.4,
-    metalness: 0.1,
-    transparent: true,
-    opacity: 1,
-    depthTest: false,
-    depthWrite: false,
-  });
-  ladMaterialRef.current = ladMaterial;
-
-  const lcxColor = getRiskColor(vessels.LCX.probability);
-
-  const lcxMaterial = new THREE.MeshStandardMaterial({
-    color: lcxColor,
-    roughness: 0.4,
-    metalness: 0.1,
-    transparent: true,
-    opacity: 1,
-    depthTest: false,
-    depthWrite: false,
-  });
-
-  lcxMaterialRef.current = lcxMaterial;
-
-  const rcaColor = getRiskColor(vessels.RCA.probability);
-
-  const rcaMaterial = new THREE.MeshStandardMaterial({
-     color: rcaColor,
-    roughness: 0.4,
-    metalness: 0.1,
-    transparent: true,
-    opacity: 1,
-    depthTest: false,
-    depthWrite: false,
-  });
-  rcaMaterialRef.current = rcaMaterial;
-
-  const ladTube = new THREE.Mesh(
-    ladGeometry,
-    ladMaterial
+  const rcaTube = useMemo(
+    () => new THREE.Mesh(rcaGeometry, rcaMaterial),
+    [rcaGeometry, rcaMaterial]
   );
 
-  const lcxTube = new THREE.Mesh(
-    lcxGeometry,
-    lcxMaterial
-  );
-
-  const rcaTube = new THREE.Mesh(
-    rcaGeometry,
-    rcaMaterial
-  );
+  ladTube.userData.vessel = "LAD";
+  lcxTube.userData.vessel = "LCX";
+  rcaTube.userData.vessel = "RCA";
 
 //  ladTube.visible = selectedVessel === "LAD";
 //   lcxTube.visible = selectedVessel === "LCX";
@@ -308,19 +403,7 @@ function HeartModel({ vessels, selectedVessel }: HeartSceneProps) {
   // This is important because it keeps the exact
   // same coordinate system as the heart.
   useEffect(() => {
-    const group = vesselGroupRef.current;
-
-    if (!group) return;
-
-      group.add(ladTube);
-      group.add(lcxTube);
-      group.add(rcaTube);
-
     return () => {
-      group.remove(ladTube);
-      group.remove(lcxTube);
-      group.remove(rcaTube);
-      
       ladGeometry.dispose();
       lcxGeometry.dispose();
       rcaGeometry.dispose();
@@ -330,10 +413,6 @@ function HeartModel({ vessels, selectedVessel }: HeartSceneProps) {
       rcaMaterial.dispose();
     };
   }, [
-    scene,
-    ladTube,
-    lcxTube,
-    rcaTube,
     ladGeometry,
     lcxGeometry,
     rcaGeometry,
@@ -342,13 +421,51 @@ function HeartModel({ vessels, selectedVessel }: HeartSceneProps) {
     rcaMaterial,
   ]);
 
-  return (
+return (
+    <>
       <primitive
         object={scene}
         scale={1}
         castShadow
         receiveShadow
       />
+
+      <primitive
+        object={ladTube}
+        onPointerOver={(e: any) => {
+          e.stopPropagation();
+          setHoveredVessel("LAD");
+        }}
+        onPointerOut={(e: any) => {
+          e.stopPropagation();
+          setHoveredVessel(null);
+        }}
+      />
+
+      <primitive
+        object={lcxTube}
+        onPointerOver={(e: any) => {
+          e.stopPropagation();
+          setHoveredVessel("LCX");
+        }}
+        onPointerOut={(e: any) => {
+          e.stopPropagation();
+          setHoveredVessel(null);
+        }}
+      />
+
+      <primitive
+        object={rcaTube}
+        onPointerOver={(e: any) => {
+          e.stopPropagation();
+          setHoveredVessel("RCA");
+        }}
+        onPointerOut={(e: any) => {
+          e.stopPropagation();
+          setHoveredVessel(null);
+        }}
+      />
+    </>
   );
 }
 
