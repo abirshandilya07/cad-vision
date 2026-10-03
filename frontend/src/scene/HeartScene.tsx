@@ -50,23 +50,49 @@ function HeartModel({ vessels, selectedVessel }: HeartSceneProps) {
     scene.add(vesselGroupRef.current);
   }
   useEffect(() => {
-    if (ladMaterialRef.current) {
-      ladMaterialRef.current.emissiveIntensity =
-        selectedVessel === "LAD" ? 1.5 : 0.2;
+    if (!ladMaterialRef.current || !lcxMaterialRef.current || !rcaMaterialRef.current) {
+      return;
     }
 
-    if (lcxMaterialRef.current) {
-      lcxMaterialRef.current.emissiveIntensity =
-        selectedVessel === "LCX" ? 1.5 : 0.2;
-    }
-
-    if (rcaMaterialRef.current) {
-      rcaMaterialRef.current.emissiveIntensity =
-        selectedVessel === "RCA" ? 1.5 : 0.2;
-    }
+    ladMaterialRef.current.opacity = selectedVessel === "LAD" ? 1.0 : 0.25;
+    lcxMaterialRef.current.opacity = selectedVessel === "LCX" ? 1.0 : 0.25;
+    rcaMaterialRef.current.opacity = selectedVessel === "RCA" ? 1.0 : 0.25;
   }, [selectedVessel]);
 
+  useFrame((_, delta) => {
+    if (
+      !ladMaterialRef.current ||
+      !lcxMaterialRef.current ||
+      !rcaMaterialRef.current
+    ) {
+      return;
+    }
 
+    const ladTarget = selectedVessel === "LAD" ? 1.0 : 0.25;
+    const lcxTarget = selectedVessel === "LCX" ? 1.0 : 0.25;
+    const rcaTarget = selectedVessel === "RCA" ? 1.0 : 0.25;
+
+    ladMaterialRef.current.opacity = THREE.MathUtils.damp(
+      ladMaterialRef.current.opacity,
+      ladTarget,
+      4,
+      delta
+    );
+
+    lcxMaterialRef.current.opacity = THREE.MathUtils.damp(
+      lcxMaterialRef.current.opacity,
+      lcxTarget,
+      4,
+      delta
+    );
+
+    rcaMaterialRef.current.opacity = THREE.MathUtils.damp(
+      rcaMaterialRef.current.opacity,
+      rcaTarget,
+      4,
+      delta
+    );
+  });
   // useFrame(() => {
   //   const targets = {
   //     LAD: getRiskColor(vessels.LAD.probability),
@@ -221,45 +247,42 @@ function HeartModel({ vessels, selectedVessel }: HeartSceneProps) {
   );
   const ladColor = getRiskColor(vessels.LAD.probability);
 
-const ladMaterial = new THREE.MeshStandardMaterial({
-  color: "#ff0000",
-  emissive: "#ff0000",
-  emissiveIntensity: 0.5,
-  roughness: 0.4,
-  metalness: 0.1,
-  transparent: false,
-  depthTest: false,
-  depthWrite: false,
-});
+  const ladMaterial = new THREE.MeshStandardMaterial({
+    color: ladColor,
+    roughness: 0.4,
+    metalness: 0.1,
+    transparent: true,
+    opacity: 1,
+    depthTest: false,
+    depthWrite: false,
+  });
   ladMaterialRef.current = ladMaterial;
 
   const lcxColor = getRiskColor(vessels.LCX.probability);
 
-const lcxMaterial = new THREE.MeshStandardMaterial({
-  color: "#00ff00",
-  emissive: "#00ff00",
-  emissiveIntensity: 0.5,
-  roughness: 0.4,
-  metalness: 0.1,
-  transparent: false,
-  depthTest: false,
-  depthWrite: false,
-});
+  const lcxMaterial = new THREE.MeshStandardMaterial({
+    color: lcxColor,
+    roughness: 0.4,
+    metalness: 0.1,
+    transparent: true,
+    opacity: 1,
+    depthTest: false,
+    depthWrite: false,
+  });
 
   lcxMaterialRef.current = lcxMaterial;
 
   const rcaColor = getRiskColor(vessels.RCA.probability);
 
-const rcaMaterial = new THREE.MeshStandardMaterial({
-  color: "#0000ff",
-  emissive: "#0000ff",
-  emissiveIntensity: 0.5,
-  roughness: 0.4,
-  metalness: 0.1,
-  transparent: false,
-  depthTest: false,
-  depthWrite: false,
-});
+  const rcaMaterial = new THREE.MeshStandardMaterial({
+     color: rcaColor,
+    roughness: 0.4,
+    metalness: 0.1,
+    transparent: true,
+    opacity: 1,
+    depthTest: false,
+    depthWrite: false,
+  });
   rcaMaterialRef.current = rcaMaterial;
 
   const ladTube = new THREE.Mesh(
