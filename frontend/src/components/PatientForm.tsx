@@ -3,25 +3,19 @@ import { useAppStore } from '../store/useAppStore';
 import { Activity, User, Heart, FileSpreadsheet, Stethoscope, Save } from 'lucide-react';
 
 export const PatientForm: React.FC = () => {
-  // We only pull what we need to read/write the global store data
   const { patientData, setPatientData } = useAppStore();
-  
-  // Local "draft" state so we don't accidentally update the prediction engine until saved
   const [localData, setLocalData] = useState(patientData);
 
-  // If the global state changes (e.g., clicking "Load sample patient" in the top bar), 
-  // we want our local form to sync up automatically.
   useEffect(() => {
     setLocalData(patientData);
   }, [patientData]);
 
-  // Check if the user has actually modified any fields
   const isChanged = JSON.stringify(localData) !== JSON.stringify(patientData);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (isChanged) {
-      setPatientData(localData); // Commit the local draft to the global Zustand store
+      setPatientData(localData);
     }
   };
 
@@ -35,6 +29,20 @@ export const PatientForm: React.FC = () => {
     fontSize: "15px",
     outline: "none",
     transition: "border-color 0.2s ease"
+  };
+
+  // Custom style for select dropdowns to align the arrow nicely
+  const selectStyle: React.CSSProperties = {
+    ...inputStyle,
+    appearance: "none",
+    WebkitAppearance: "none",
+    MozAppearance: "none",
+    // Clean, perfectly inset SVG chevron to replace the ugly native browser arrow
+    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+    backgroundRepeat: "no-repeat",
+    backgroundPosition: "right 12px center", // Matches the number input arrow padding
+    paddingRight: "36px", // Prevents text from overlapping the custom arrow
+    cursor: "pointer"
   };
 
   const featureCategories = [
@@ -107,7 +115,6 @@ export const PatientForm: React.FC = () => {
 
   return (
     <>
-      {/* 1. Inject the clean CSS animation for mounting */}
       <style>{`
         @keyframes fadeSlideUp {
           from { opacity: 0; transform: translateY(12px); }
@@ -126,11 +133,10 @@ export const PatientForm: React.FC = () => {
           animation: "fadeSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards"
         }}
       >
-        {/* Header */}
         <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "28px" }}>
           <Activity className="text-blue-500 animate-pulse" size={32} />
           <div>
-            <div className="panel-title" style={{ fontSize: "31px" }}>Cardiovascular Diagnostic Input</div>
+            <div className="panel-title" style={{ fontSize: "28px" }}>Cardiovascular Diagnostic Input</div>
           </div>
         </div>
         
@@ -146,7 +152,6 @@ export const PatientForm: React.FC = () => {
               
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "20px" }}>
                 {category.fields.map((field) => {
-                  // Connect to localData instead of patientData
                   const val = localData[field.key as keyof typeof localData];
                   
                   return (
@@ -162,7 +167,7 @@ export const PatientForm: React.FC = () => {
                             const parsed = isNaN(Number(e.target.value)) ? e.target.value : Number(e.target.value);
                             setLocalData(prev => ({ ...prev, [field.key]: parsed }));
                           }}
-                          style={inputStyle}
+                          style={selectStyle} // <-- Now using the dedicated selectStyle
                         >
                           {field.options?.map((opt) => (
                             <option key={String(opt.val)} value={opt.val}>{opt.label}</option>
@@ -190,7 +195,6 @@ export const PatientForm: React.FC = () => {
 
           <div className="grid-line" style={{ margin: "12px 0" }} />
 
-          {/* 3. Dynamic "Save Changes" Button */}
           <div style={{ display: "flex", justifyContent: "flex-end", paddingBottom: "24px", position: "sticky", bottom: "-10px" }}>
             <button
               type="submit"
@@ -202,8 +206,6 @@ export const PatientForm: React.FC = () => {
                 gap: "10px", 
                 padding: "14px 32px", 
                 fontSize: "16px", 
-                
-                // UX logic for dimmed state
                 cursor: isChanged ? "pointer" : "not-allowed",
                 opacity: isChanged ? 1 : 0.4,
                 filter: isChanged ? "none" : "grayscale(50%)",

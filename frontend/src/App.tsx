@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { BarChart3, Settings, Scale, Sun, Moon } from "lucide-react";
-// 1. Import the PatientForm component
 import { PatientForm } from "./components/PatientForm";
-
+import { useAppStore } from "./store/useAppStore"; // <-- Add this
 export default function App() {
+  const { runPrediction, isLoading } = useAppStore(); // <-- Add this
+  
   const [showBanner, setShowBanner] = useState(true);
   const [selectedVessel, setSelectedVessel] = useState<"LAD" | "LCX" | "RCA">("LAD");
   
@@ -45,6 +46,17 @@ export default function App() {
 
   return (
     <div className="app-wrapper">
+      {/* Dashboard Animation Keyframes */}
+      <style>{`
+        @keyframes dashboardFadeSlideUp {
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .dashboard-animate {
+          animation: dashboardFadeSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+      `}</style>
+
       {/* Disclaimer */}
       {showBanner && (
         <div className="disclaimer-banner">
@@ -68,7 +80,7 @@ export default function App() {
             <BarChart3 size={18} /> Load sample patient
           </button>
           
-          {/* 2. Toggle showForm state on click */}
+          {/* Toggle showForm state on click */}
           <button 
             className="nav-btn" 
             onClick={() => setShowForm(!showForm)} 
@@ -77,23 +89,33 @@ export default function App() {
             <Settings size={18} /> {showForm ? "View Dashboard" : "Adjust parameters"}
           </button>
           
-          <button className="nav-btn nav-btn-primary" onClick={() => setShowForm(true)} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <Scale size={18} /> Run Prediction
+            <button 
+            className="nav-btn nav-btn-primary" 
+            onClick={runPrediction} 
+            disabled={isLoading}
+            style={{ 
+              display: "flex", 
+              alignItems: "center", 
+              gap: "8px",
+              cursor: isLoading ? "wait" : "pointer",
+              opacity: isLoading ? 0.7 : 1
+            }}
+          >
+            <Scale size={18} /> {isLoading ? "Running..." : "Run Prediction"}
           </button>
         </div>
       </header>
 
       {/* Workspace */}
       <main className="main-grid">
-        {/* 3. Conditional rendering: Show PatientForm if toggled on, else show standard dashboard layout */}
         {showForm ? (
           <div style={{ gridColumn: "1 / -1", padding: "20px 0" }}>
             <PatientForm />
           </div>
         ) : (
           <>
-            {/* Left Canvas */}
-            <section className="canvas-panel">
+            {/* Left Canvas - Added dashboard-animate class */}
+            <section className="canvas-panel dashboard-animate">
               <div style={{ color: "var(--text-secondary)", fontSize: "20px" }}>🫀 [Member C: 3D Heart Canvas]</div>
               <div className="selected-overlay">
                 <div style={{ fontSize: "28px", color: "#ffffff", marginBottom: "8px" }}>
@@ -105,8 +127,8 @@ export default function App() {
               </div>
             </section>
 
-            {/* Right Dashboard */}
-            <section className="dashboard-grid">
+            {/* Right Dashboard - Added dashboard-animate class */}
+            <section className="dashboard-grid dashboard-animate">
               
               {/* Top Panel: Gauge */}
               <div className="panel-card" style={{ paddingBottom: "12px" }}>
@@ -120,7 +142,7 @@ export default function App() {
                 <div className="grid-line" style={{ margin: "16px 0" }} />
 
                 <div style={{ position: "relative", width: "100%", maxWidth: "600px", margin: "0 auto", marginTop: "16px" }}>
-                  <svg width="100%" viewBox="140 80 456 235" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <svg width="100%" viewBox="140 80 456 250" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M336.7 100.3C345.4 99 354.2 98.2 363 98L363.6 124C355.9 124.2 348.2 124.8 340.6 126L336.7 100.3Z" fill="#168A55"/>
                     <path d="M304.6 107.7C314.1 104.7 323.7 102.4 333.5 100.8L337.7 126.4C329.2 127.9 320.7 129.9 312.5 132.5L304.6 107.7Z" fill="#168A55"/>
                     <path d="M274.1 120.1C282.9 115.7 292.1 111.9 301.5 108.7L309.7 133.4C301.5 136.2 293.5 139.5 285.7 143.4L274.1 120.1Z" fill="#168A55"/>
@@ -147,11 +169,11 @@ export default function App() {
                     <circle cx="368" cy="308" r="15.5" fill="var(--text-primary)" />
                     <circle cx="368" cy="308" r="6" fill="#FFC145"/>
 
-                    <text x="218" y="282" textAnchor="middle" fontSize="13" fill="var(--text-primary)" fontWeight="700">0%</text>
-                    <text x="265" y="210" textAnchor="middle" fontSize="13" fill="var(--text-primary)" fontWeight="700">25</text>
-                    <text x="368" y="145" textAnchor="middle" fontSize="13" fill="var(--text-primary)" fontWeight="700">50</text>
-                    <text x="471" y="210" textAnchor="middle" fontSize="13" fill="var(--text-primary)" fontWeight="700">75</text>
-                    <text x="518" y="282" textAnchor="middle" fontSize="13" fill="var(--text-primary)" fontWeight="700">100%</text>
+                    <text x="223" y="300" textAnchor="middle" fontSize="13" fill="var(--text-primary)" fontWeight="700">0%</text>
+                    <text x="265" y="205" textAnchor="middle" fontSize="13" fill="var(--text-primary)" fontWeight="700">25</text>
+                    <text x="368" y="163" textAnchor="middle" fontSize="13" fill="var(--text-primary)" fontWeight="700">50</text>
+                    <text x="471" y="205" textAnchor="middle" fontSize="13" fill="var(--text-primary)" fontWeight="700">75</text>
+                    <text x="513" y="300" textAnchor="middle" fontSize="13" fill="var(--text-primary)" fontWeight="700">100%</text>
                   </svg>
                 </div>
                 
@@ -211,7 +233,7 @@ export default function App() {
 
               {/* Bottom Panel: SHAP Feature Importance */}
               <div className="panel-card" style={{ flex: 1 }}>
-                <div className="panel-title">SHAP Feature Importance</div>
+                <div className="panel-title">SHAP Analysis</div>
                 <div className="grid-line" style={{ margin: "16px 0" }} />
                 
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#168a55", fontWeight: 700, marginBottom: "16px" }}>
@@ -265,4 +287,4 @@ export default function App() {
       </main>
     </div>
   );
-}   
+}
