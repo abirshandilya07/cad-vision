@@ -195,3 +195,39 @@ def test_model_expecting_a_missing_column_is_caught_at_startup(tmp_path, train_f
     store = ModelStore.load(SCHEMA_PATH, tmp_path)
     assert "Cath" not in store.models
     assert "stub: failed to load" in store.sources["Cath"]
+
+def test_missing_threshold_config_raises(monkeypatch):
+    bad_thresholds = {
+        "Cath": 0.5,
+        "LAD": 0.5,
+        "LCX": 0.5,
+        # RCA intentionally missing
+    }
+
+    monkeypatch.setattr(
+        "app.services.model_store.THRESHOLDS",
+        bad_thresholds,
+    )
+
+    with pytest.raises(ValueError, match="Missing threshold"):
+        ModelStore(SCHEMA, Path("."))
+
+def test_per_target_thresholds(monkeypatch, tmp_path):
+    custom_thresholds = {
+        "Cath": 0.41,
+        "LAD": 0.52,
+        "LCX": 0.63,
+        "RCA": 0.74,
+    }
+
+    monkeypatch.setattr(
+        "app.services.model_store.THRESHOLDS",
+        custom_thresholds,
+    )
+
+    store = ModelStore.load(
+        schema_path=SCHEMA_PATH,
+        artifacts_dir=tmp_path,
+    )
+
+    assert store.thresholds == custom_thresholds
