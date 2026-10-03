@@ -6,7 +6,7 @@ import HeartScene from "./scene/HeartScene";
 export default function App() {
   const [showBanner, setShowBanner] = useState(true);
   const [selectedVessel, setSelectedVessel] = useState<"LAD" | "LCX" | "RCA">("LAD");
-  
+  // console.log("SELECTED VESSEL:", selectedVessel);
   // Theme Toggle State
   const [isDark, setIsDark] = useState(false);
 
@@ -19,11 +19,11 @@ export default function App() {
   const overallRisk = 68;
   const vessels = {
     LAD: {
-      name: "LAD ARTERY", sub: "LEFT ANTERIOR DESCENDING", prob: 85, level: "HIGH RISK",
+      name: "LAD ARTERY", sub: "LEFT ANTERIOR DESCENDING", prob: 80, level: "HIGH RISK",
       seg: "SEG / PROX-MID", conf: "CONF / 0.94", status: "STENOTIC", badge: "REVIEW REQUIRED", color: "#D33F38"
     },
     LCX: {
-      name: "LCX ARTERY", sub: "LEFT CIRCUMFLEX", prob: 22, level: "LOW RISK",
+      name: "LCX ARTERY", sub: "LEFT CIRCUMFLEX", prob: 18, level: "LOW RISK",
       seg: "SEG / PROXIMAL", conf: "CONF / 0.91", status: "NORMAL", badge: "WITHIN RANGE", color: "#168A55"
     },
     RCA: {
@@ -92,7 +92,10 @@ export default function App() {
       <main className="main-grid">
         {/* Left Canvas */}
         <section className="canvas-panel">
-          <HeartScene vessels={heartVessels} />
+          <HeartScene
+            vessels={heartVessels}
+            selectedVessel={selectedVessel}
+          />
           <div className="selected-overlay">
             <div style={{ fontSize: "28px", color: "#ffffff", marginBottom: "8px" }}>
               Selected: <span style={{ color: vessels[selectedVessel].color }}>{vessels[selectedVessel].name}</span>

@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { Canvas } from "@react-three/fiber";
+import { useEffect, useRef } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { Bounds, Center, OrbitControls, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { vesselPaths } from "./vesselPaths";
@@ -16,6 +16,7 @@ type HeartSceneProps = {
     LCX: VesselPrediction;
     RCA: VesselPrediction;
   };
+  selectedVessel: "LAD" | "LCX" | "RCA";
 };
 function DebugPoints() {
   const points = [
@@ -35,8 +36,73 @@ function DebugPoints() {
     </>
   );
 }
-function HeartModel({ vessels }: HeartSceneProps) {
+function HeartModel({ vessels, selectedVessel }: HeartSceneProps) {
   const { scene } = useGLTF("/models/heart_markers.glb");
+  
+
+  const ladMaterialRef = useRef<THREE.MeshStandardMaterial | null>(null);
+  const lcxMaterialRef = useRef<THREE.MeshStandardMaterial | null>(null);
+  const rcaMaterialRef = useRef<THREE.MeshStandardMaterial | null>(null);
+  const vesselGroupRef = useRef<THREE.Group | null>(null);
+
+  if (!vesselGroupRef.current) {
+    vesselGroupRef.current = new THREE.Group();
+    scene.add(vesselGroupRef.current);
+  }
+  useEffect(() => {
+    if (ladMaterialRef.current) {
+      ladMaterialRef.current.emissiveIntensity =
+        selectedVessel === "LAD" ? 1.5 : 0.2;
+    }
+
+    if (lcxMaterialRef.current) {
+      lcxMaterialRef.current.emissiveIntensity =
+        selectedVessel === "LCX" ? 1.5 : 0.2;
+    }
+
+    if (rcaMaterialRef.current) {
+      rcaMaterialRef.current.emissiveIntensity =
+        selectedVessel === "RCA" ? 1.5 : 0.2;
+    }
+  }, [selectedVessel]);
+
+
+  // useFrame(() => {
+  //   const targets = {
+  //     LAD: getRiskColor(vessels.LAD.probability),
+  //     LCX: getRiskColor(vessels.LCX.probability),
+  //     RCA: getRiskColor(vessels.RCA.probability),
+  //   };
+
+  //   if (ladMaterialRef.current) {
+  //     ladMaterialRef.current.color.lerp(targets.LAD, 0.08);
+  //   }
+
+  //   if (lcxMaterialRef.current) {
+  //     lcxMaterialRef.current.color.lerp(targets.LCX, 0.08);
+  //   }
+
+  //   if (rcaMaterialRef.current) {
+  //     rcaMaterialRef.current.color.lerp(targets.RCA, 0.08);
+  //   }
+  // });
+
+  // useEffect(() => {
+  //   if (ladMaterialRef.current) {
+  //     ladMaterialRef.current.emissiveIntensity =
+  //       selectedVessel === "LAD" ? 1.0 : 0.15;
+  //   }
+
+  //   if (lcxMaterialRef.current) {
+  //     lcxMaterialRef.current.emissiveIntensity =
+  //       selectedVessel === "LCX" ? 1.0 : 0.15;
+  //   }
+
+  //   if (rcaMaterialRef.current) {
+  //     rcaMaterialRef.current.emissiveIntensity =
+  //       selectedVessel === "RCA" ? 1.0 : 0.15;
+  //   }
+  // }, [selectedVessel]);
 
   const LAD_NAMES = [
     "LAD_01",
@@ -46,6 +112,7 @@ function HeartModel({ vessels }: HeartSceneProps) {
     "LAD_05",
     "LAD_06",
     "LAD_07",
+    "LAD_08",
   ];
 
   const LCX_NAMES = [
@@ -55,6 +122,8 @@ function HeartModel({ vessels }: HeartSceneProps) {
     "LCX_03",
     "LCX_04",
     "LCX_05",
+    "LCX_06",
+    "LCX_07",
   ];
   const RCA_NAMES = [
     "RCA_01",
@@ -63,7 +132,9 @@ function HeartModel({ vessels }: HeartSceneProps) {
     "RCA_04",
     "RCA_05",
     "RCA_06",
-    "RCA_07"
+    "RCA_07",
+    "RCA_08",
+    "RCA_09",
   ];
 
   // Make sure all GLB transforms are calculated first.
@@ -150,39 +221,46 @@ function HeartModel({ vessels }: HeartSceneProps) {
   );
   const ladColor = getRiskColor(vessels.LAD.probability);
 
-  const ladMaterial = new THREE.MeshStandardMaterial({
-    color: ladColor,
-    emissive: ladColor,
-    emissiveIntensity: 0.15,
-    roughness: 0.4,
-    metalness: 0.1,
-    depthTest: false,
-    depthWrite: false,
-  });
+const ladMaterial = new THREE.MeshStandardMaterial({
+  color: "#ff0000",
+  emissive: "#ff0000",
+  emissiveIntensity: 0.5,
+  roughness: 0.4,
+  metalness: 0.1,
+  transparent: false,
+  depthTest: false,
+  depthWrite: false,
+});
+  ladMaterialRef.current = ladMaterial;
 
   const lcxColor = getRiskColor(vessels.LCX.probability);
 
-  const lcxMaterial = new THREE.MeshStandardMaterial({
-    color: lcxColor,
-    emissive: lcxColor,
-    emissiveIntensity: 0.15,
-    roughness: 0.4,
-    metalness: 0.1,
-    depthTest: false,
-    depthWrite: false,
-  });
+const lcxMaterial = new THREE.MeshStandardMaterial({
+  color: "#00ff00",
+  emissive: "#00ff00",
+  emissiveIntensity: 0.5,
+  roughness: 0.4,
+  metalness: 0.1,
+  transparent: false,
+  depthTest: false,
+  depthWrite: false,
+});
+
+  lcxMaterialRef.current = lcxMaterial;
 
   const rcaColor = getRiskColor(vessels.RCA.probability);
 
-  const rcaMaterial = new THREE.MeshStandardMaterial({
-    color: rcaColor,
-    emissive: rcaColor,
-    emissiveIntensity: 0.15,
-    roughness: 0.4,
-    metalness: 0.1,
-    depthTest: false,
-    depthWrite: false,
-  });
+const rcaMaterial = new THREE.MeshStandardMaterial({
+  color: "#0000ff",
+  emissive: "#0000ff",
+  emissiveIntensity: 0.5,
+  roughness: 0.4,
+  metalness: 0.1,
+  transparent: false,
+  depthTest: false,
+  depthWrite: false,
+});
+  rcaMaterialRef.current = rcaMaterial;
 
   const ladTube = new THREE.Mesh(
     ladGeometry,
@@ -199,19 +277,27 @@ function HeartModel({ vessels }: HeartSceneProps) {
     rcaMaterial
   );
 
+//  ladTube.visible = selectedVessel === "LAD";
+//   lcxTube.visible = selectedVessel === "LCX";
+//   rcaTube.visible = selectedVessel === "RCA"; 
+
   // Add the LAD tube to the same GLB scene.
   // This is important because it keeps the exact
   // same coordinate system as the heart.
   useEffect(() => {
-    scene.add(ladTube);
-    scene.add(lcxTube);
-    scene.add(rcaTube);
+    const group = vesselGroupRef.current;
+
+    if (!group) return;
+
+      group.add(ladTube);
+      group.add(lcxTube);
+      group.add(rcaTube);
 
     return () => {
-      scene.remove(ladTube);
-      scene.remove(lcxTube);
-      scene.remove(rcaTube);
-
+      group.remove(ladTube);
+      group.remove(lcxTube);
+      group.remove(rcaTube);
+      
       ladGeometry.dispose();
       lcxGeometry.dispose();
       rcaGeometry.dispose();
@@ -234,18 +320,19 @@ function HeartModel({ vessels }: HeartSceneProps) {
   ]);
 
   return (
-    <Center>
       <primitive
         object={scene}
         scale={1}
         castShadow
         receiveShadow
       />
-    </Center>
   );
 }
 
-export default function HeartScene({ vessels }: HeartSceneProps) {
+export default function HeartScene({
+  vessels,
+  selectedVessel,
+}: HeartSceneProps) {
   return (
     <div style={{ width: "100%", height: "100%", minHeight: 0 }}>
       <Canvas
@@ -271,9 +358,10 @@ export default function HeartScene({ vessels }: HeartSceneProps) {
           intensity={1}
         />
 
-        <Bounds fit clip observe margin={1.2}>
-          <HeartModel vessels={vessels} />
-        </Bounds>
+          <HeartModel
+            vessels={vessels}
+            selectedVessel={selectedVessel}
+          />
 
 
         <OrbitControls
