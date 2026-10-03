@@ -4,7 +4,7 @@ import HeartScene from "./scene/HeartScene";
 import { PatientForm } from "./components/PatientForm";
 import { useAppStore } from "./store/useAppStore";
 export default function App() {
-  const { runPrediction, isLoading } = useAppStore(); // <-- Add this
+  const { runPrediction, isLoading, predictionResult } = useAppStore(); // <-- Add this
 
   const [showBanner, setShowBanner] = useState(true);
   const [selectedVessel, setSelectedVessel] = useState<"LAD" | "LCX" | "RCA">("LAD");
@@ -19,19 +19,38 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', newTheme ? 'dark' : 'light');
   };
 
-  const overallRisk = 68;
+// Helper function to determine risk colors and labels dynamically
+  const getRiskProfile = (probability = 0) => {
+    const prob = Math.round(probability * 100);
+    if (prob >= 70) return { prob, level: "HIGH RISK", status: "STENOTIC", badge: "REVIEW REQUIRED", color: "#D33F38" };
+    if (prob >= 50) return { prob, level: "ELEVATED RISK", status: "STENOTIC", badge: "REVIEW REQUIRED", color: "#FFC145" };
+    return { prob, level: "LOW RISK", status: "NORMAL", badge: "WITHIN RANGE", color: "#168A55" };
+  };
+
+  // Dynamically set overall risk (defaulting to 0 before the first prediction is run)
+  const overallRisk = predictionResult 
+    ? Math.round(predictionResult.predictions.Cath.probability * 100) 
+    : 0;
+
+  // Map the API results to the vessel cards
   const vessels = {
     LAD: {
-      name: "LAD ARTERY", sub: "LEFT ANTERIOR DESCENDING", prob: 80, level: "HIGH RISK",
-      seg: "SEG / PROX-MID", conf: "CONF / 0.94", status: "STENOTIC", badge: "REVIEW REQUIRED", color: "#D33F38"
+      name: "LAD ARTERY", sub: "LEFT ANTERIOR DESCENDING", 
+      seg: "SEG / PROX-MID", 
+      conf: `CONF / ${predictionResult?.predictions.LAD.probability.toFixed(2) || '0.00'}`, 
+      ...getRiskProfile(predictionResult?.predictions.LAD.probability)
     },
     LCX: {
-      name: "LCX ARTERY", sub: "LEFT CIRCUMFLEX", prob: 18, level: "LOW RISK",
-      seg: "SEG / PROXIMAL", conf: "CONF / 0.91", status: "NORMAL", badge: "WITHIN RANGE", color: "#168A55"
+      name: "LCX ARTERY", sub: "LEFT CIRCUMFLEX", 
+      seg: "SEG / PROXIMAL", 
+      conf: `CONF / ${predictionResult?.predictions.LCX.probability.toFixed(2) || '0.00'}`, 
+      ...getRiskProfile(predictionResult?.predictions.LCX.probability)
     },
     RCA: {
-      name: "RCX ARTERY", sub: "RIGHT CORONARY", prob: 67, level: "ELEVATED RISK",
-      seg: "SEG / MID-DISTAL", conf: "CONF / 0.89", status: "STENOTIC", badge: "REVIEW REQUIRED", color: "#FFC145"
+      name: "RCX ARTERY", sub: "RIGHT CORONARY", 
+      seg: "SEG / MID-DISTAL", 
+      conf: `CONF / ${predictionResult?.predictions.RCA.probability.toFixed(2) || '0.00'}`, 
+      ...getRiskProfile(predictionResult?.predictions.RCA.probability)
     }
   };
 
