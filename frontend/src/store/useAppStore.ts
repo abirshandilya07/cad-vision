@@ -6,6 +6,7 @@ interface AppState {
   // Current patient form inputs matching the 52 features
   patientData: PatientInputs;
   setPatientData: (data: Partial<PatientInputs>) => void;
+  setPatientField: (field: keyof PatientInputs, value: any) => void; // <--- Add this
 
   // API loading & prediction state
   isLoading: boolean;
@@ -18,6 +19,13 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
+  setPatientData: (data) =>
+    set((state) => ({ patientData: { ...state.patientData, ...data } })),
+
+  setPatientField: (field, value) =>
+    set((state) => ({
+      patientData: { ...state.patientData, [field]: value }
+    })),
   // Default values matching the contract's median/default row
   patientData: {
     Age: 58,
@@ -74,8 +82,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     VHD: 'N',
   },
   
-  setPatientData: (data) =>
-    set((state) => ({ patientData: { ...state.patientData, ...data } })),
 
   isLoading: false,
   predictionResult: null,
