@@ -1,13 +1,28 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { Activity, User, Heart, FileSpreadsheet, Stethoscope, Send } from 'lucide-react';
+import { Activity, User, Heart, FileSpreadsheet, Stethoscope, Save } from 'lucide-react';
 
 export const PatientForm: React.FC = () => {
-  const { patientData, setPatientField, runPrediction, isLoading } = useAppStore();
+  // We only pull what we need to read/write the global store data
+  const { patientData, setPatientData } = useAppStore();
+  
+  // Local "draft" state so we don't accidentally update the prediction engine until saved
+  const [localData, setLocalData] = useState(patientData);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // If the global state changes (e.g., clicking "Load sample patient" in the top bar), 
+  // we want our local form to sync up automatically.
+  useEffect(() => {
+    setLocalData(patientData);
+  }, [patientData]);
+
+  // Check if the user has actually modified any fields
+  const isChanged = JSON.stringify(localData) !== JSON.stringify(patientData);
+
+  const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    await runPrediction();
+    if (isChanged) {
+      setPatientData(localData); // Commit the local draft to the global Zustand store
+    }
   };
 
   const inputStyle: React.CSSProperties = {
@@ -17,8 +32,9 @@ export const PatientForm: React.FC = () => {
     borderRadius: "6px",
     padding: "10px 14px",
     color: "var(--text-primary)",
-    fontSize: "15px", // Increased from 13px for better readability
-    outline: "none"
+    fontSize: "15px",
+    outline: "none",
+    transition: "border-color 0.2s ease"
   };
 
   const featureCategories = [
@@ -90,91 +106,117 @@ export const PatientForm: React.FC = () => {
   ];
 
   return (
-    <div 
-      className="panel-card" 
-      style={{ 
-        width: "100%", 
-        maxHeight: "calc(100vh - 100px)", 
-        overflowY: "auto", 
-        padding: "32px",
-        boxSizing: "border-box"
-      }}
-    >
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "28px" }}>
-        <Activity className="text-blue-500 animate-pulse" size={32} />
-        <div>
-          <div className="panel-title" style={{ fontSize: "30px" }}>Cardiovascular Diagnostic Input</div>
-        </div>
-      </div>
-      
-      <div className="grid-line" style={{ margin: "16px 0 32px 0" }} />
+    <>
+      {/* 1. Inject the clean CSS animation for mounting */}
+      <style>{`
+        @keyframes fadeSlideUp {
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
 
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "40px" }}>
-        
-        {featureCategories.map((category, catIdx) => (
-          <div key={catIdx}>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "20px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-              {category.icon} {category.title}
-            </div>
-            
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "20px" }}>
-              {category.fields.map((field) => {
-                const val = patientData[field.key as keyof typeof patientData];
-                return (
-                  <div key={field.key}>
-                    <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "var(--text-secondary)", marginBottom: "8px", textTransform: "uppercase" }}>
-                      {field.label}
-                    </label>
-                    
-                    {field.type === 'select' ? (
-                      <select
-                        value={val !== undefined ? String(val) : ''}
-                        onChange={(e) => {
-                          const parsed = isNaN(Number(e.target.value)) ? e.target.value : Number(e.target.value);
-                          setPatientField(field.key as any, parsed);
-                        }}
-                        style={inputStyle}
-                      >
-                        {field.options?.map((opt) => (
-                          <option key={String(opt.val)} value={opt.val}>{opt.label}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input
-                        type={field.type === 'number' ? 'number' : 'text'}
-                        step="any"
-                        value={val !== undefined && val !== null ? val : ''}
-                        onChange={(e) => {
-                          const parsed = field.type === 'number' ? (e.target.value === '' ? '' : Number(e.target.value)) : e.target.value;
-                          setPatientField(field.key as any, parsed);
-                        }}
-                        style={inputStyle}
-                        placeholder={`Enter ${field.key}`}
-                      />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+      <div 
+        className="panel-card" 
+        style={{ 
+          width: "100%", 
+          maxHeight: "calc(100vh - 100px)", 
+          overflowY: "auto", 
+          padding: "32px",
+          boxSizing: "border-box",
+          animation: "fadeSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards"
+        }}
+      >
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "28px" }}>
+          <Activity className="text-blue-500 animate-pulse" size={32} />
+          <div>
+            <div className="panel-title" style={{ fontSize: "31px" }}>Cardiovascular Diagnostic Input</div>
           </div>
-        ))}
-
-        <div className="grid-line" style={{ margin: "12px 0" }} />
-
-        {/* Submit Action */}
-        <div style={{ display: "flex", justifyContent: "flex-end", paddingBottom: "24px" }}>
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="nav-btn nav-btn-primary"
-            style={{ display: "flex", alignItems: "center", gap: "10px", padding: "14px 32px", fontSize: "16px", cursor: "pointer" }}
-          >
-            <Send size={20} />
-            {isLoading ? "Running Diagnostic Pipeline..." : "Run Prediction & Analysis"}
-          </button>
         </div>
-      </form>
-    </div>
+        
+        <div className="grid-line" style={{ margin: "16px 0 32px 0" }} />
+
+        <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: "40px" }}>
+          
+          {featureCategories.map((category, catIdx) => (
+            <div key={catIdx}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "20px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                {category.icon} {category.title}
+              </div>
+              
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "20px" }}>
+                {category.fields.map((field) => {
+                  // Connect to localData instead of patientData
+                  const val = localData[field.key as keyof typeof localData];
+                  
+                  return (
+                    <div key={field.key}>
+                      <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "var(--text-secondary)", marginBottom: "8px", textTransform: "uppercase" }}>
+                        {field.label}
+                      </label>
+                      
+                      {field.type === 'select' ? (
+                        <select
+                          value={val !== undefined ? String(val) : ''}
+                          onChange={(e) => {
+                            const parsed = isNaN(Number(e.target.value)) ? e.target.value : Number(e.target.value);
+                            setLocalData(prev => ({ ...prev, [field.key]: parsed }));
+                          }}
+                          style={inputStyle}
+                        >
+                          {field.options?.map((opt) => (
+                            <option key={String(opt.val)} value={opt.val}>{opt.label}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type={field.type === 'number' ? 'number' : 'text'}
+                          step="any"
+                          value={val !== undefined && val !== null ? val : ''}
+                          onChange={(e) => {
+                            const parsed = field.type === 'number' ? (e.target.value === '' ? '' : Number(e.target.value)) : e.target.value;
+                            setLocalData(prev => ({ ...prev, [field.key]: parsed }));
+                          }}
+                          style={inputStyle}
+                          placeholder={`Enter ${field.key}`}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+
+          <div className="grid-line" style={{ margin: "12px 0" }} />
+
+          {/* 3. Dynamic "Save Changes" Button */}
+          <div style={{ display: "flex", justifyContent: "flex-end", paddingBottom: "24px", position: "sticky", bottom: "-10px" }}>
+            <button
+              type="submit"
+              disabled={!isChanged}
+              className="nav-btn nav-btn-primary"
+              style={{ 
+                display: "flex", 
+                alignItems: "center", 
+                gap: "10px", 
+                padding: "14px 32px", 
+                fontSize: "16px", 
+                
+                // UX logic for dimmed state
+                cursor: isChanged ? "pointer" : "not-allowed",
+                opacity: isChanged ? 1 : 0.4,
+                filter: isChanged ? "none" : "grayscale(50%)",
+                transition: "all 0.25s ease",
+                transform: isChanged ? "scale(1)" : "scale(0.98)"
+              }}
+            >
+              <Save size={20} />
+              {isChanged ? "Save Changes" : "No Changes Detected"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </>
   );
 };
