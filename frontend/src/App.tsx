@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { BarChart3, Settings, Scale, Sun, Moon } from "lucide-react";
+import HeartScene from "./scene/HeartScene";
+
 
 export default function App() {
   const [showBanner, setShowBanner] = useState(true);
@@ -28,6 +30,21 @@ export default function App() {
       name: "RCX ARTERY", sub: "RIGHT CORONARY", prob: 67, level: "ELEVATED RISK",
       seg: "SEG / MID-DISTAL", conf: "CONF / 0.89", status: "STENOTIC", badge: "REVIEW REQUIRED", color: "#FFC145"
     }
+  };
+
+  const heartVessels = {
+    LAD: {
+      probability: vessels.LAD.prob / 100,
+      label: vessels.LAD.prob >= 50 ? 1 : 0,
+    },
+    LCX: {
+      probability: vessels.LCX.prob / 100,
+      label: vessels.LCX.prob >= 50 ? 1 : 0,
+    },
+    RCA: {
+      probability: vessels.RCA.prob / 100,
+      label: vessels.RCA.prob >= 50 ? 1 : 0,
+    },
   };
 
   const shapFeatures = [
@@ -75,7 +92,7 @@ export default function App() {
       <main className="main-grid">
         {/* Left Canvas */}
         <section className="canvas-panel">
-          <div style={{ color: "var(--text-secondary)", fontSize: "20px" }}>🫀 [Member C: 3D Heart Canvas]</div>
+          <HeartScene vessels={heartVessels} />
           <div className="selected-overlay">
             <div style={{ fontSize: "28px", color: "#ffffff", marginBottom: "8px" }}>
               Selected: <span style={{ color: vessels[selectedVessel].color }}>{vessels[selectedVessel].name}</span>

@@ -1,8 +1,9 @@
+import { useEffect } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Bounds, Center, OrbitControls, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { vesselPaths } from "./vesselPaths";
-import CoordinateTest from "./CoordinateTest";
+import { getRiskColor } from "./riskColor";
 
 type VesselPrediction = {
   probability: number;
@@ -34,7 +35,7 @@ function DebugPoints() {
     </>
   );
 }
-function HeartModel() {
+function HeartModel({ vessels }: HeartSceneProps) {
   const { scene } = useGLTF("/models/heart_markers.glb");
 
   const LAD_NAMES = [
@@ -62,35 +63,12 @@ function HeartModel() {
     "RCA_04",
     "RCA_05",
     "RCA_06",
+    "RCA_07"
   ];
 
   // Make sure all GLB transforms are calculated first.
   scene.updateMatrixWorld(true);
-  const lcxDebugGeometry = new THREE.SphereGeometry(0.015, 16, 16);
 
-const lcxDebugMaterial = new THREE.MeshBasicMaterial({
-  color: "#00ff00",
-  depthTest: false,
-  depthWrite: false,
-});
-
-LCX_NAMES.forEach((name) => {
-  const marker = scene.getObjectByName(name);
-
-  if (!marker) return;
-
-  // Don't create duplicate debug spheres during hot reload.
-  if (marker.getObjectByName(`${name}_DEBUG`)) return;
-
-  const sphere = new THREE.Mesh(
-    lcxDebugGeometry,
-    lcxDebugMaterial
-  );
-
-  sphere.name = `${name}_DEBUG`;
-
-  marker.add(sphere);
-});
   // Get the marker positions in world space,
   // then convert them back into the GLB scene's local space.
   const ladPoints = LAD_NAMES
@@ -170,31 +148,36 @@ LCX_NAMES.forEach((name) => {
     12,
     false
   );
+  const ladColor = getRiskColor(vessels.LAD.probability);
 
   const ladMaterial = new THREE.MeshStandardMaterial({
-    color: "#ff3333",
-    emissive: "#550000",
-    emissiveIntensity: 0.4,
+    color: ladColor,
+    emissive: ladColor,
+    emissiveIntensity: 0.15,
     roughness: 0.4,
     metalness: 0.1,
     depthTest: false,
     depthWrite: false,
   });
+
+  const lcxColor = getRiskColor(vessels.LCX.probability);
 
   const lcxMaterial = new THREE.MeshStandardMaterial({
-    color: "#00ccff",
-    emissive: "#003344",
-    emissiveIntensity: 0.4,
+    color: lcxColor,
+    emissive: lcxColor,
+    emissiveIntensity: 0.15,
     roughness: 0.4,
     metalness: 0.1,
     depthTest: false,
     depthWrite: false,
   });
 
+  const rcaColor = getRiskColor(vessels.RCA.probability);
+
   const rcaMaterial = new THREE.MeshStandardMaterial({
-    color: "#ff9900",
-    emissive: "#552200",
-    emissiveIntensity: 0.4,
+    color: rcaColor,
+    emissive: rcaColor,
+    emissiveIntensity: 0.15,
     roughness: 0.4,
     metalness: 0.1,
     depthTest: false,
@@ -219,9 +202,36 @@ LCX_NAMES.forEach((name) => {
   // Add the LAD tube to the same GLB scene.
   // This is important because it keeps the exact
   // same coordinate system as the heart.
-  scene.add(ladTube);
-  scene.add(rcaTube);
-  scene.add(lcxTube);
+  useEffect(() => {
+    scene.add(ladTube);
+    scene.add(lcxTube);
+    scene.add(rcaTube);
+
+    return () => {
+      scene.remove(ladTube);
+      scene.remove(lcxTube);
+      scene.remove(rcaTube);
+
+      ladGeometry.dispose();
+      lcxGeometry.dispose();
+      rcaGeometry.dispose();
+
+      ladMaterial.dispose();
+      lcxMaterial.dispose();
+      rcaMaterial.dispose();
+    };
+  }, [
+    scene,
+    ladTube,
+    lcxTube,
+    rcaTube,
+    ladGeometry,
+    lcxGeometry,
+    rcaGeometry,
+    ladMaterial,
+    lcxMaterial,
+    rcaMaterial,
+  ]);
 
   return (
     <Center>
@@ -237,7 +247,7 @@ LCX_NAMES.forEach((name) => {
 
 export default function HeartScene({ vessels }: HeartSceneProps) {
   return (
-    <div style={{ width: "100%", height: "600px" }}>
+    <div style={{ width: "100%", height: "100%", minHeight: 0 }}>
       <Canvas
         camera={{
           position: [0, 0, 3],
@@ -262,10 +272,9 @@ export default function HeartScene({ vessels }: HeartSceneProps) {
         />
 
         <Bounds fit clip observe margin={1.2}>
-          <HeartModel />
+          <HeartModel vessels={vessels} />
         </Bounds>
 
-        <CoordinateTest/>
 
         <OrbitControls
           enableDamping
