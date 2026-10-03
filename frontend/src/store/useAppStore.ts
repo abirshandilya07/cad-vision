@@ -82,8 +82,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     VHD: 'N',
   },
   
-  setPatientData: (data) =>
-    set((state) => ({ patientData: { ...state.patientData, ...data } })),
 
   isLoading: false,
   predictionResult: null,

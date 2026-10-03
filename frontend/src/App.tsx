@@ -1,16 +1,15 @@
 import { useState } from "react";
 import { BarChart3, Settings, Scale, Sun, Moon } from "lucide-react";
+import HeartScene from "./scene/HeartScene";
 import { PatientForm } from "./components/PatientForm";
-import { useAppStore } from "./store/useAppStore"; // <-- Add this
+import { useAppStore } from "./store/useAppStore";
 export default function App() {
   const { runPrediction, isLoading } = useAppStore(); // <-- Add this
-  
+
   const [showBanner, setShowBanner] = useState(true);
   const [selectedVessel, setSelectedVessel] = useState<"LAD" | "LCX" | "RCA">("LAD");
-  
   // State to toggle between the dashboard and the clinical input form
   const [showForm, setShowForm] = useState(false);
-  
   // Theme Toggle State
   const [isDark, setIsDark] = useState(false);
 
@@ -23,17 +22,32 @@ export default function App() {
   const overallRisk = 68;
   const vessels = {
     LAD: {
-      name: "LAD ARTERY", sub: "LEFT ANTERIOR DESCENDING", prob: 85, level: "HIGH RISK",
+      name: "LAD ARTERY", sub: "LEFT ANTERIOR DESCENDING", prob: 80, level: "HIGH RISK",
       seg: "SEG / PROX-MID", conf: "CONF / 0.94", status: "STENOTIC", badge: "REVIEW REQUIRED", color: "#D33F38"
     },
     LCX: {
-      name: "LCX ARTERY", sub: "LEFT CIRCUMFLEX", prob: 22, level: "LOW RISK",
+      name: "LCX ARTERY", sub: "LEFT CIRCUMFLEX", prob: 18, level: "LOW RISK",
       seg: "SEG / PROXIMAL", conf: "CONF / 0.91", status: "NORMAL", badge: "WITHIN RANGE", color: "#168A55"
     },
     RCA: {
       name: "RCX ARTERY", sub: "RIGHT CORONARY", prob: 67, level: "ELEVATED RISK",
       seg: "SEG / MID-DISTAL", conf: "CONF / 0.89", status: "STENOTIC", badge: "REVIEW REQUIRED", color: "#FFC145"
     }
+  };
+
+  const heartVessels = {
+    LAD: {
+      probability: vessels.LAD.prob / 100,
+      label: vessels.LAD.prob >= 50 ? 1 : 0,
+    },
+    LCX: {
+      probability: vessels.LCX.prob / 100,
+      label: vessels.LCX.prob >= 50 ? 1 : 0,
+    },
+    RCA: {
+      probability: vessels.RCA.prob / 100,
+      label: vessels.RCA.prob >= 50 ? 1 : 0,
+    },
   };
 
   const shapFeatures = [
@@ -75,27 +89,27 @@ export default function App() {
             {isDark ? <Sun size={18} /> : <Moon size={18} />}
             {isDark ? "Light" : "Dark"}
           </button>
-          
+
           <button className="nav-btn" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <BarChart3 size={18} /> Load sample patient
           </button>
-          
+
           {/* Toggle showForm state on click */}
-          <button 
-            className="nav-btn" 
-            onClick={() => setShowForm(!showForm)} 
+          <button
+            className="nav-btn"
+            onClick={() => setShowForm(!showForm)}
             style={{ display: "flex", alignItems: "center", gap: "8px", borderColor: showForm ? 'var(--blue-500)' : undefined }}
           >
             <Settings size={18} /> {showForm ? "View Dashboard" : "Adjust parameters"}
           </button>
-          
-            <button 
-            className="nav-btn nav-btn-primary" 
-            onClick={runPrediction} 
+
+            <button
+            className="nav-btn nav-btn-primary"
+            onClick={runPrediction}
             disabled={isLoading}
-            style={{ 
-              display: "flex", 
-              alignItems: "center", 
+            style={{
+              display: "flex",
+              alignItems: "center",
               gap: "8px",
               cursor: isLoading ? "wait" : "pointer",
               opacity: isLoading ? 0.7 : 1
@@ -114,22 +128,39 @@ export default function App() {
           </div>
         ) : (
           <>
-            {/* Left Canvas - Added dashboard-animate class */}
+            {/* Left Canvas - 3D Heart */}
             <section className="canvas-panel dashboard-animate">
-              <div style={{ color: "var(--text-secondary)", fontSize: "20px" }}>🫀 [Member C: 3D Heart Canvas]</div>
+              <HeartScene
+                vessels={heartVessels}
+                selectedVessel={selectedVessel}
+              />
+
               <div className="selected-overlay">
-                <div style={{ fontSize: "28px", color: "#ffffff", marginBottom: "8px" }}>
-                  Selected: <span style={{ color: vessels[selectedVessel].color }}>{vessels[selectedVessel].name}</span>
+                <div
+                  style={{
+                    fontSize: "28px",
+                    color: "#ffffff",
+                    marginBottom: "8px",
+                  }}
+                >
+                  Selected:{" "}
+                  <span style={{ color: vessels[selectedVessel].color }}>
+                    {vessels[selectedVessel].name}
+                  </span>
                 </div>
+
                 <div style={{ fontSize: "22px", color: "#ffffff" }}>
-                  Stenosis probability: <span style={{ color: vessels[selectedVessel].color }}>{vessels[selectedVessel].prob}%</span>
+                  Stenosis probability:{" "}
+                  <span style={{ color: vessels[selectedVessel].color }}>
+                    {vessels[selectedVessel].prob}%
+                  </span>
                 </div>
               </div>
             </section>
 
             {/* Right Dashboard - Added dashboard-animate class */}
             <section className="dashboard-grid dashboard-animate">
-              
+
               {/* Top Panel: Gauge */}
               <div className="panel-card" style={{ paddingBottom: "12px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -153,7 +184,7 @@ export default function App() {
                     <path d="M168.7 241.5C171.9 232.1 175.7 222.9 180.1 214.1L203.4 225.7C199.5 233.5 196.2 241.5 193.4 249.7L168.7 241.5Z" fill="#168A55"/>
                     <path d="M160.8 273.5C162.4 263.7 164.7 254.1 167.7 244.6L192.5 252.5C189.9 260.7 187.9 269.2 186.4 277.7L160.8 273.5Z" fill="#168A55"/>
                     <path d="M158 303C158.2 294.2 159 285.4 160.3 276.7L186 280.6C184.8 288.2 184.2 295.9 184 303.6L158 303Z" fill="#168A55"/>
-                    
+
                     <path d="M575.6 276.7C576.9 285.4 577.7 294.2 577.9 303L551.9 303.6C551.7 295.9 551.1 288.2 549.9 280.6L575.6 276.7Z" fill="#D33F38"/>
                     <path d="M568.2 244.6C571.2 254.1 573.5 263.7 575.1 273.5L549.5 277.7C548 269.2 546 260.7 543.4 252.5L568.2 244.6Z" fill="#D33F38"/>
                     <path d="M555.8 214.1C560.2 222.9 564 232.1 567.2 241.5L542.5 249.7C539.7 241.5 536.4 233.5 532.5 225.7L555.8 214.1Z" fill="#D33F38"/>
@@ -164,7 +195,7 @@ export default function App() {
                     <path d="M434.4 108.7C443.8 111.9 453 115.7 461.8 120.1L450.2 143.4C442.4 139.5 434.4 136.2 426.2 133.4L434.4 108.7Z" fill="#D33F38"/>
                     <path d="M402.4 100.8C412.2 102.4 421.8 104.7 431.3 107.7L423.4 132.5C415.2 129.9 406.7 127.9 398.2 126.4L402.4 100.8Z" fill="#D33F38"/>
                     <path d="M372.9 98C381.7 98.2 390.5 99 399.2 100.3L395.3 126C387.7 124.8 380 124.2 372.3 124L372.9 98Z" fill="#D33F38"/>
-                    
+
                     <path d="M468.6 155.4L470.1 164.7L383.6 289.3L459.5 158L468.6 155.4Z" fill="#FFC145" stroke="var(--text-primary)" strokeWidth="1.5"/>
                     <circle cx="368" cy="308" r="15.5" fill="var(--text-primary)" />
                     <circle cx="368" cy="308" r="6" fill="#FFC145"/>
@@ -176,7 +207,7 @@ export default function App() {
                     <text x="513" y="300" textAnchor="middle" fontSize="13" fill="var(--text-primary)" fontWeight="700">100%</text>
                   </svg>
                 </div>
-                
+
                 <div style={{ display: "flex", justifyContent: "space-between", marginTop: "0px", fontSize: "12px", fontWeight: 700 }}>
                   <span style={{ color: "#168A55" }}>— LOW RISK</span>
                   <span style={{ color: "#D33F38" }}>HIGH RISK —</span>
@@ -190,21 +221,21 @@ export default function App() {
                   const isActive = selectedVessel === key;
                   return (
                     <div key={key} className="vessel-card" onClick={() => setSelectedVessel(key)}
-                      style={{ 
+                      style={{
                         border: isActive ? `2px solid ${v.color}` : `none`,
                         backgroundColor: isActive ? "var(--bg-active)" : "var(--bg-panel)"
                       }}>
                       <div className="tech-rail" style={{ backgroundColor: v.color }}></div>
-                      
+
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <div>
                           <div style={{ fontSize: "28px", fontWeight: 700 }}>{v.name}</div>
                           <div style={{ fontSize: "10px", color: "var(--text-secondary)", fontWeight: 700 }}>{v.sub}</div>
                         </div>
                       </div>
-                      
+
                       <div className="grid-line"></div>
-                      
+
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
                         <div style={{ display: "flex", alignItems: "baseline", gap: "2px" }}>
                           <span style={{ fontSize: "56px", fontWeight: 700, lineHeight: 1 }}>{v.prob}</span>
@@ -218,7 +249,7 @@ export default function App() {
                       </div>
 
                       <div className="grid-line"></div>
-                      
+
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", fontWeight: 700, color: "var(--text-secondary)" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                           <div style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: v.color }}></div>
@@ -235,12 +266,12 @@ export default function App() {
               <div className="panel-card" style={{ flex: 1 }}>
                 <div className="panel-title">SHAP Analysis</div>
                 <div className="grid-line" style={{ margin: "16px 0" }} />
-                
+
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#168a55", fontWeight: 700, marginBottom: "16px" }}>
                   <span>← DECREASES RISK</span>
                   <span style={{ color: "#d33f38" }}>INCREASES RISK →</span>
                 </div>
-                
+
                 <div style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative" }}>
                   <div style={{ position: "absolute", left: "calc(160px + 50% - 4px)", top: "-18px", fontSize: "12px", fontWeight: 700 }}>0</div>
 
@@ -250,7 +281,7 @@ export default function App() {
                         {f.name}
                         <span className="shap-sub">{f.sub}</span>
                       </div>
-                      
+
                       <div className="shap-track">
                         <div className="shap-neg-container">
                           {f.dir === "neg" && (
@@ -260,7 +291,7 @@ export default function App() {
                             </>
                           )}
                         </div>
-                        
+
                         <div className="shap-pos-container">
                           {f.dir === "pos" && (
                             <>
@@ -273,7 +304,7 @@ export default function App() {
                     </div>
                   ))}
                 </div>
-                
+
                 <div className="grid-line" style={{ margin: "16px 0" }} />
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--text-secondary)" }}>
                   <span>SHAP values based on XGBoost model output · Positive = Increases predicted stenosis probability</span>
