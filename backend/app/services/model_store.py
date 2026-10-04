@@ -43,13 +43,12 @@ import math
 import os
 from pathlib import Path
 from typing import Any
-
+from ml.config import THRESHOLDS
 import joblib
 import pandas as pd
 
 log = logging.getLogger("cad.model_store")
 
-DEFAULT_THRESHOLD = 0.5   # Oct 4 moves this to config; the store already keeps one per target
 STUB_VERSION = "stub-0"
 STUB_PARTIAL_VERSION = "stub-partial"
 
@@ -120,8 +119,15 @@ class ModelStore:
         self.column_order: list[str] = schema["model_feature_order"]
         self._inputs: dict[str, dict] = {f["name"]: f for f in schema["features"]}
         self._derived: dict[str, dict] = {d["name"]: d for d in schema["derived_features"]}
+        target_names = {t["name"] for t in self.targets}
 
-        self.thresholds: dict[str, float] = {t["name"]: DEFAULT_THRESHOLD for t in self.targets}
+        missing_thresholds = target_names - set(THRESHOLDS)
+
+        if missing_thresholds:
+            raise ValueError(
+                f"Missing threshold(s) in config for: {sorted(missing_thresholds)}"
+            )
+        self.thresholds: dict[str, float] = {t["name"]: THRESHOLDS[t["name"]] for t in self.targets}
         self.models: dict[str, Any] = {}          # target -> fitted model (real ones only)
         self._positive_col: dict[str, int] = {}   # target -> column of the positive class
         self.sources: dict[str, str] = {}         # target -> "artifact" or "stub: <reason>"
