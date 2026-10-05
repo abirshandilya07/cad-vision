@@ -4,6 +4,7 @@ import HeartScene from "./scene/HeartScene";
 import { PatientForm } from "./components/PatientForm";
 import { useAppStore } from "./store/useAppStore";
 import { getRiskColor } from "./scene/riskColor";
+import { VitalsTable } from "./components/VitalsTable";
 
 export default function App() {
   const { runPrediction, isLoading, predictionResult } = useAppStore();
@@ -356,7 +357,7 @@ export default function App() {
                   <span style={{ fontWeight: 700, color: "var(--text-primary)" }}>BASE: 0.50</span>
                 </div>
               </div>
-
+              <VitalsTable/>
             </section>
           </>
         )}
@@ -364,3 +365,4 @@ export default function App() {
     </div>
   );
 }
+
