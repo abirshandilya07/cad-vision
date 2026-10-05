@@ -153,7 +153,8 @@ export default function App() {
               <HeartScene
                 vessels={heartVessels}
                 selectedVessel={selectedVessel}
-              />
+                onVesselSelect={setSelectedVessel}
+              />      
 
               <div className="selected-overlay">
                 <div
@@ -251,14 +252,16 @@ export default function App() {
                       className="vessel-card" 
                       onClick={() => setSelectedVessel(key)}
                       onMouseEnter={(e) => {
-                        if (!isActive) e.currentTarget.style.backgroundColor = "var(--bg-active)";
+                        // Swapped to grid-line for a much more visible hover state
+                        if (!isActive) e.currentTarget.style.backgroundColor = "var(--grid-line)";
                       }}
                       onMouseLeave={(e) => {
                         if (!isActive) e.currentTarget.style.backgroundColor = "var(--bg-panel)";
                       }}
                       style={{
                         border: isActive ? `2px solid ${v.color}` : `2px solid transparent`,
-                        backgroundColor: isActive ? `${v.color}1A` : "var(--bg-panel)",
+                        // Reverted back to the clean theme variable instead of the muddy hex opacity
+                        backgroundColor: isActive ? "var(--bg-active)" : "var(--bg-panel)",
                         transition: "background-color 0.2s ease, border 0.2s ease"
                       }}
                     >
