@@ -122,3 +122,9 @@ export interface ApiErrorResponse {
     message: string;
   }>;
 }
+export type SampleKey =
+  | "low_risk"
+  | "medium_risk"
+  | "high_risk";
+
+export type SamplesResponse = Record<SampleKey, PatientInputs>;

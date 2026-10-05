@@ -1,9 +1,10 @@
 // src/store/useAppStore.ts
 import { create } from 'zustand';
-import { PatientInputs, PredictionResponse } from '../types/api';
-import { predictPatient } from "../api/client";
+import { PatientInputs, PredictionResponse,SampleKey } from '../types/api';
+import { predictPatient,getSamples } from "../api/client";
 
 interface AppState {
+  loadSample: (name: SampleKey) => Promise<void>;
   // Current patient form inputs matching the 52 features
   patientData: PatientInputs;
   setPatientData: (data: Partial<PatientInputs>) => void;
@@ -102,6 +103,25 @@ export const useAppStore = create<AppState>((set, get) => ({
       });
     } catch (error) {
     console.error("Prediction failed", error);
+
+    set({
+      isLoading: false,
+    });
+  }
+},
+loadSample: async (name) => {
+  set({ isLoading: true });
+
+  try {
+    const samples = await getSamples();
+
+    set({
+      patientData: samples[name],
+      predictionResult: null,
+      isLoading: false,
+    });
+  } catch (error) {
+    console.error("Failed to load sample", error);
 
     set({
       isLoading: false,
