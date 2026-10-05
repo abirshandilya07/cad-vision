@@ -17,6 +17,7 @@ type HeartSceneProps = {
     RCA: VesselPrediction;
   };
   selectedVessel: "LAD" | "LCX" | "RCA";
+  onVesselSelect: (vessel: "LAD" | "LCX" | "RCA") => void;
 };
 function DebugPoints() {
   const points = [
@@ -36,7 +37,7 @@ function DebugPoints() {
     </>
   );
 }
-function HeartModel({ vessels, selectedVessel }: HeartSceneProps) {
+function HeartModel({ vessels, selectedVessel, onVesselSelect, }: HeartSceneProps) {
   const { scene } = useGLTF("/models/heart_markers.glb");
   
   const [hoveredVessel, setHoveredVessel] = useState<
@@ -283,6 +284,10 @@ const rcaCurve = useMemo(
     ),
   [ladCurve]
 );
+  const ladHitGeometry = useMemo(
+    () => new THREE.TubeGeometry(ladCurve, 128, 0.025, 12, false),
+    [ladCurve]
+);
 
 const lcxGeometry = useMemo(
   () =>
@@ -295,6 +300,11 @@ const lcxGeometry = useMemo(
     ),
   [lcxCurve]
 );
+const lcxHitGeometry = useMemo(
+  () => new THREE.TubeGeometry(lcxCurve, 128, 0.025, 12, false),
+  [lcxCurve]
+);
+
 
 const rcaGeometry = useMemo(
   () =>
@@ -307,6 +317,11 @@ const rcaGeometry = useMemo(
     ),
   [rcaCurve]
 );
+const rcaHitGeometry = useMemo(
+  () => new THREE.TubeGeometry(rcaCurve, 128, 0.025, 12, false),
+  [rcaCurve]
+);
+
   const ladColor = useMemo(
   () => getRiskColor(vessels.LAD.probability),
   [vessels.LAD.probability]
@@ -328,6 +343,20 @@ const rcaGeometry = useMemo(
     return material;
   },
   [ladColor]
+);
+  const ladHitMaterial = useMemo(
+  () =>
+    new THREE.MeshBasicMaterial({
+      transparent: true,
+      opacity: 0,
+      depthWrite: true,
+      depthTest: false,
+    }),
+  []
+);
+const ladHitTube = useMemo(
+  () => new THREE.Mesh(ladHitGeometry, ladHitMaterial),
+  [ladHitGeometry, ladHitMaterial]
 );
 
   const lcxColor = useMemo(
@@ -352,7 +381,21 @@ const rcaGeometry = useMemo(
   },
   [lcxColor]
 );
+const lcxHitMaterial = useMemo(
+  () =>
+    new THREE.MeshBasicMaterial({
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      depthTest: false,
+    }),
+  []
+);
 
+const lcxHitTube = useMemo(
+  () => new THREE.Mesh(lcxHitGeometry, lcxHitMaterial),
+  [lcxHitGeometry, lcxHitMaterial]
+);
 
   const rcaColor = useMemo(
   () => getRiskColor(vessels.RCA.probability),
@@ -376,6 +419,23 @@ const rcaGeometry = useMemo(
   },
   [rcaColor]
 );
+
+const rcaHitMaterial = useMemo(
+  () =>
+    new THREE.MeshBasicMaterial({
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      depthTest: false,
+    }),
+  []
+);
+
+const rcaHitTube = useMemo(
+  () => new THREE.Mesh(rcaHitGeometry, rcaHitMaterial),
+  [rcaHitGeometry, rcaHitMaterial]
+);
+
   const ladTube = useMemo(
     () => new THREE.Mesh(ladGeometry, ladMaterial),
     [ladGeometry, ladMaterial]
@@ -430,8 +490,10 @@ return (
         receiveShadow
       />
 
+      <primitive object={ladTube} />
+
       <primitive
-        object={ladTube}
+        object={ladHitTube}
         onPointerOver={(e: any) => {
           e.stopPropagation();
           setHoveredVessel("LAD");
@@ -440,10 +502,16 @@ return (
           e.stopPropagation();
           setHoveredVessel(null);
         }}
+        onClick={(e: any) => {
+          e.stopPropagation();
+          onVesselSelect("LAD");
+        }}
       />
 
+      <primitive object={lcxTube} />
+
       <primitive
-        object={lcxTube}
+        object={lcxHitTube}
         onPointerOver={(e: any) => {
           e.stopPropagation();
           setHoveredVessel("LCX");
@@ -452,10 +520,16 @@ return (
           e.stopPropagation();
           setHoveredVessel(null);
         }}
+        onClick={(e: any) => {
+          e.stopPropagation();
+          onVesselSelect("LCX");
+        }}
       />
 
+      <primitive object={rcaTube} />
+
       <primitive
-        object={rcaTube}
+        object={rcaHitTube}
         onPointerOver={(e: any) => {
           e.stopPropagation();
           setHoveredVessel("RCA");
@@ -463,6 +537,10 @@ return (
         onPointerOut={(e: any) => {
           e.stopPropagation();
           setHoveredVessel(null);
+        }}
+        onClick={(e: any) => {
+          e.stopPropagation();
+          onVesselSelect("RCA");
         }}
       />
     </>
@@ -472,6 +550,7 @@ return (
 export default function HeartScene({
   vessels,
   selectedVessel,
+  onVesselSelect,
 }: HeartSceneProps) {
   return (
     <div style={{ width: "100%", height: "100%", minHeight: 0 }}>
@@ -501,6 +580,7 @@ export default function HeartScene({
           <HeartModel
             vessels={vessels}
             selectedVessel={selectedVessel}
+            onVesselSelect={onVesselSelect}
           />
 
 

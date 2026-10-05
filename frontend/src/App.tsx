@@ -152,7 +152,8 @@ export default function App() {
               <HeartScene
                 vessels={heartVessels}
                 selectedVessel={selectedVessel}
-              />
+                onVesselSelect={setSelectedVessel}
+              />      
 
               <div className="selected-overlay">
                 <div
