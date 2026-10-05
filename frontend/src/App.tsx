@@ -3,6 +3,7 @@ import { BarChart3, Settings, Scale, Sun, Moon } from "lucide-react";
 import HeartScene from "./scene/HeartScene";
 import { PatientForm } from "./components/PatientForm";
 import { useAppStore } from "./store/useAppStore";
+import { getRiskColor } from "./scene/riskColor";
 
 export default function App() {
   const { runPrediction, isLoading, predictionResult } = useAppStore();
@@ -22,9 +23,13 @@ export default function App() {
   // Helper function to determine risk colors and labels dynamically
   const getRiskProfile = (probability = 0) => {
     const prob = Math.round(probability * 100);
-    if (prob >= 70) return { prob, level: "HIGH RISK", status: "STENOTIC", badge: "REVIEW REQUIRED", color: "#D33F38" };
-    if (prob >= 50) return { prob, level: "ELEVATED RISK", status: "STENOTIC", badge: "REVIEW REQUIRED", color: "#FFC145" };
-    return { prob, level: "LOW RISK", status: "NORMAL", badge: "WITHIN RANGE", color: "#168A55" };
+    
+    // Fetch the THREE.Color from Member C's file and convert to a CSS string
+    const dynamicColor = getRiskColor(probability).getStyle();
+    
+    if (prob >= 70) return { prob, level: "HIGH RISK", status: "STENOTIC", badge: "REVIEW REQUIRED", color: dynamicColor };
+    if (prob >= 50) return { prob, level: "ELEVATED RISK", status: "STENOTIC", badge: "REVIEW REQUIRED", color: dynamicColor };
+    return { prob, level: "LOW RISK", status: "NORMAL", badge: "WITHIN RANGE", color: dynamicColor };
   };
 
   // Dynamically set overall risk (defaulting to 0 before the first prediction is run)
