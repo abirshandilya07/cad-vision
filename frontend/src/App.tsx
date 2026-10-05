@@ -3,9 +3,9 @@ import { BarChart3, Settings, Scale, Sun, Moon } from "lucide-react";
 import HeartScene from "./scene/HeartScene";
 import { PatientForm } from "./components/PatientForm";
 import { useAppStore } from "./store/useAppStore";
-export default function App() {
-  const { runPrediction, isLoading, predictionResult } = useAppStore(); // <-- Add this
 
+export default function App() {
+  const { runPrediction, isLoading, predictionResult } = useAppStore();
   const [showBanner, setShowBanner] = useState(true);
   const [selectedVessel, setSelectedVessel] = useState<"LAD" | "LCX" | "RCA">("LAD");
   // State to toggle between the dashboard and the clinical input form
@@ -19,7 +19,7 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', newTheme ? 'dark' : 'light');
   };
 
-// Helper function to determine risk colors and labels dynamically
+  // Helper function to determine risk colors and labels dynamically
   const getRiskProfile = (probability = 0) => {
     const prob = Math.round(probability * 100);
     if (prob >= 70) return { prob, level: "HIGH RISK", status: "STENOTIC", badge: "REVIEW REQUIRED", color: "#D33F38" };
@@ -47,7 +47,7 @@ export default function App() {
       ...getRiskProfile(predictionResult?.predictions.LCX.probability)
     },
     RCA: {
-      name: "RCX ARTERY", sub: "RIGHT CORONARY", 
+      name: "RCA ARTERY", sub: "RIGHT CORONARY", 
       seg: "SEG / MID-DISTAL", 
       conf: `CONF / ${predictionResult?.predictions.RCA.probability.toFixed(2) || '0.00'}`, 
       ...getRiskProfile(predictionResult?.predictions.RCA.probability)
@@ -138,6 +138,7 @@ export default function App() {
           </button>
         </div>
       </header>
+      
 
       {/* Workspace */}
       <main className="main-grid">
@@ -215,9 +216,15 @@ export default function App() {
                     <path d="M402.4 100.8C412.2 102.4 421.8 104.7 431.3 107.7L423.4 132.5C415.2 129.9 406.7 127.9 398.2 126.4L402.4 100.8Z" fill="#D33F38"/>
                     <path d="M372.9 98C381.7 98.2 390.5 99 399.2 100.3L395.3 126C387.7 124.8 380 124.2 372.3 124L372.9 98Z" fill="#D33F38"/>
 
-                    <path d="M468.6 155.4L470.1 164.7L383.6 289.3L459.5 158L468.6 155.4Z" fill="#FFC145" stroke="var(--text-primary)" strokeWidth="1.5"/>
-                    <circle cx="368" cy="308" r="15.5" fill="var(--text-primary)" />
-                    <circle cx="368" cy="308" r="6" fill="#FFC145"/>
+                    <g style={{
+                      transform: `rotate(${overallRisk * 1.8}deg)`,
+                      transformOrigin: "368px 308px",
+                      transition: "transform 1s cubic-bezier(0.16, 1, 0.3, 1)"
+                    }}>
+                      <polygon points="368,304 368,312 170,308" fill="#FFC145" stroke="var(--text-primary)" strokeWidth="1.5" />
+                      <circle cx="368" cy="308" r="15.5" fill="var(--text-primary)" />
+                      <circle cx="368" cy="308" r="6" fill="#FFC145"/>
+                    </g>
 
                     <text x="223" y="300" textAnchor="middle" fontSize="13" fill="var(--text-primary)" fontWeight="700">0%</text>
                     <text x="265" y="205" textAnchor="middle" fontSize="13" fill="var(--text-primary)" fontWeight="700">25</text>
@@ -239,16 +246,27 @@ export default function App() {
                   const v = vessels[key];
                   const isActive = selectedVessel === key;
                   return (
-                    <div key={key} className="vessel-card" onClick={() => setSelectedVessel(key)}
+                    <div 
+                      key={key} 
+                      className="vessel-card" 
+                      onClick={() => setSelectedVessel(key)}
+                      onMouseEnter={(e) => {
+                        if (!isActive) e.currentTarget.style.backgroundColor = "var(--bg-active)";
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isActive) e.currentTarget.style.backgroundColor = "var(--bg-panel)";
+                      }}
                       style={{
-                        border: isActive ? `2px solid ${v.color}` : `none`,
-                        backgroundColor: isActive ? "var(--bg-active)" : "var(--bg-panel)"
-                      }}>
+                        border: isActive ? `2px solid ${v.color}` : `2px solid transparent`,
+                        backgroundColor: isActive ? `${v.color}1A` : "var(--bg-panel)",
+                        transition: "background-color 0.2s ease, border 0.2s ease"
+                      }}
+                    >
                       <div className="tech-rail" style={{ backgroundColor: v.color }}></div>
 
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <div>
-                          <div style={{ fontSize: "28px", fontWeight: 700 }}>{v.name}</div>
+                          <div style={{ fontSize: "28px", fontWeight: 700, color: isActive ? v.color : "var(--text-primary)", transition: "color 0.2s ease" }}>{v.name}</div>
                           <div style={{ fontSize: "10px", color: "var(--text-secondary)", fontWeight: 700 }}>{v.sub}</div>
                         </div>
                       </div>
