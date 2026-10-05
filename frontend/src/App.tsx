@@ -5,7 +5,8 @@ import { PatientForm } from "./components/PatientForm";
 import { useAppStore } from "./store/useAppStore";
 export default function App() {
   const { runPrediction, isLoading, predictionResult } = useAppStore(); // <-- Add this
-
+  const isStubPrediction =
+    predictionResult?.model_version.startsWith("stub") ?? false;
   const [showBanner, setShowBanner] = useState(true);
   const [selectedVessel, setSelectedVessel] = useState<"LAD" | "LCX" | "RCA">("LAD");
   // State to toggle between the dashboard and the clinical input form
@@ -97,7 +98,21 @@ export default function App() {
           <button className="dismiss-button" onClick={() => setShowBanner(false)}>Dismiss</button>
         </div>
       )}
-
+    {isStubPrediction && (
+    <div
+      style={{
+        margin: "12px 0",
+        padding: "12px 16px",
+        border: "1px solid #FFC145",
+        borderRadius: "8px",
+        background: "rgba(255, 193, 69, 0.12)",
+        fontSize: "14px",
+        fontWeight: 600,
+      }}
+    >
+      Demo mode: predictions are generated using fallback stub data because real model artifacts are not loaded.
+    </div>
+  )}
       {/* Header */}
       <header className="top-bar">
         <div className="cad-vision" onClick={() => setShowForm(false)} style={{ cursor: 'pointer' }}>
