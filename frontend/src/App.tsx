@@ -8,7 +8,7 @@ import { VitalsTable } from "./components/VitalsTable";
 
 import type { SampleKey } from "./types/api";
 export default function App() {
-  const { runPrediction, loadSample,isLoading, predictionResult } = useAppStore(); // <-- Add this
+  const { runPrediction, loadSample,isLoading, predictionResult, explanationResult} = useAppStore(); // <-- Add this
   const isStubPrediction =
     predictionResult?.model_version.startsWith("stub") ?? false;
   const [sampleMenuOpen, setSampleMenuOpen] = useState(false);
@@ -41,6 +41,9 @@ export default function App() {
   const overallRisk = predictionResult 
     ? Math.round(predictionResult.predictions.Cath.probability * 100) 
     : 0;
+  const overallRiskProfile = getRiskProfile(
+    predictionResult?.predictions.Cath.probability
+  );
 
   // Map the API results to the vessel cards
   const vessels = {
@@ -79,13 +82,32 @@ export default function App() {
     },
   };
 
-  const shapFeatures = [
-    { name: "Typical Chest Pain", sub: "(Present)", val: "+0.42", width: "80%", dir: "pos" },
-    { name: "Age", sub: "(58 yrs)", val: "-0.11", width: "25%", dir: "neg" },
-    { name: "Systolic BP", sub: "(130 mmHg)", val: "+0.21", width: "45%", dir: "pos" },
-    { name: "Fast Blood Sugar", sub: "(98 mg/dL)", val: "-0.15", width: "35%", dir: "neg" },
-    { name: "Current Smoker", sub: "(No)", val: "-0.04", width: "10%", dir: "neg" }
-  ];
+  const selectedExplanation =
+  explanationResult?.explanations[selectedVessel];
+
+const maxShap =
+  selectedExplanation?.top_features.length
+    ? Math.max(
+        ...selectedExplanation.top_features.map((feature) =>
+          Math.abs(feature.shap)
+        )
+      )
+    : 0;
+
+const shapFeatures =
+  selectedExplanation?.top_features.map((feature) => ({
+    name: feature.feature,
+    sub: `(${String(feature.value)})`,
+    val:
+      feature.shap >= 0
+        ? `+${feature.shap.toFixed(3)}`
+        : feature.shap.toFixed(3),
+    width:
+      maxShap > 0
+        ? `${(Math.abs(feature.shap) / maxShap) * 100}%`
+        : "0%",
+    dir: feature.shap >= 0 ? "pos" : "neg",
+  })) ?? [];
 
   return (
     <div className="app-wrapper">
@@ -252,7 +274,9 @@ export default function App() {
                   <div className="panel-title">Overall CAD Risk</div>
                   <div style={{ textAlign: "right" }}>
                     <div style={{ fontSize: "56px", fontWeight: 700, lineHeight: "50px", letterSpacing: "-2px" }}>{overallRisk}%</div>
-                    <div style={{ fontSize: "10px", color: "#d33f38", fontWeight: 700, letterSpacing: "1px" }}>ELEVATED RISK</div>
+                    <div style={{fontSize: "10px",color: overallRiskProfile.color,fontWeight: 700,letterSpacing: "1px",}}>
+                      {predictionResult ? overallRiskProfile.level : "NO PREDICTION"}
+                    </div>
                   </div>
                 </div>
                 <div className="grid-line" style={{ margin: "16px 0" }} />
@@ -379,40 +403,86 @@ export default function App() {
                 <div style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative" }}>
                   <div style={{ position: "absolute", left: "calc(160px + 50% - 4px)", top: "-18px", fontSize: "12px", fontWeight: 700 }}>0</div>
 
-                  {shapFeatures.map((f, i) => (
-                    <div key={i} className="shap-row">
-                      <div className="shap-label">
-                        {f.name}
-                        <span className="shap-sub">{f.sub}</span>
-                      </div>
+                  {selectedExplanation ? (
+  shapFeatures.map((f, i) => (
+    <div key={i} className="shap-row">
+      <div className="shap-label">
+        {f.name}
+        <span className="shap-sub">{f.sub}</span>
+      </div>
 
-                      <div className="shap-track">
-                        <div className="shap-neg-container">
-                          {f.dir === "neg" && (
-                            <>
-                              <span style={{ fontSize: "12px", color: "#168a55" }}>{f.val}</span>
-                              <div className="shap-bar shap-bar-neg" style={{ width: f.width }} />
-                            </>
-                          )}
-                        </div>
+      <div className="shap-track">
+        <div className="shap-neg-container">
+          {f.dir === "neg" && (
+            <>
+              <span
+                style={{
+                  fontSize: "12px",
+                  color: "#168a55",
+                }}
+              >
+                {f.val}
+              </span>
 
-                        <div className="shap-pos-container">
-                          {f.dir === "pos" && (
-                            <>
-                              <div className="shap-bar shap-bar-pos" style={{ width: f.width }} />
-                              <span style={{ fontSize: "12px", color: "#d33f38" }}>{f.val}</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+              <div
+                className="shap-bar shap-bar-neg"
+                style={{ width: f.width }}
+              />
+            </>
+          )}
+        </div>
+
+        <div className="shap-pos-container">
+          {f.dir === "pos" && (
+            <>
+              <div
+                className="shap-bar shap-bar-pos"
+                style={{ width: f.width }}
+              />
+
+              <span
+                style={{
+                  fontSize: "12px",
+                  color: "#d33f38",
+                }}
+              >
+                {f.val}
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  ))
+) : (
+  <div
+    style={{
+      padding: "24px",
+      textAlign: "center",
+      color: "var(--text-secondary)",
+      fontSize: "14px",
+    }}
+  >
+    {predictionResult
+      ? "SHAP explanation unavailable while real model artifacts are not loaded."
+      : "Run a prediction to view SHAP analysis."}
+  </div>
+)}
                 </div>
 
                 <div className="grid-line" style={{ margin: "16px 0" }} />
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--text-secondary)" }}>
-                  <span>SHAP values based on XGBoost model output · Positive = Increases predicted stenosis probability</span>
-                  <span style={{ fontWeight: 700, color: "var(--text-primary)" }}>BASE: 0.50</span>
+                  <span>SHAP values · Positive = Increases predicted stenosis probability</span>
+                  <span
+  style={{
+    fontWeight: 700,
+    color: "var(--text-primary)",
+  }}
+>
+  {selectedExplanation
+    ? `BASE: ${selectedExplanation.base_value.toFixed(3)}`
+    : "BASE: —"}
+</span>
                 </div>
               </div>
               <VitalsTable/>
