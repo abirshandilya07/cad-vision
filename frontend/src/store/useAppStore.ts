@@ -1,8 +1,10 @@
 // src/store/useAppStore.ts
 import { create } from 'zustand';
-import { PatientInputs, PredictionResponse } from '../types/api';
+import { PatientInputs, PredictionResponse,SampleKey } from '../types/api';
+import { predictPatient,getSamples } from "../api/client";
 
 interface AppState {
+  loadSample: (name: SampleKey) => Promise<void>;
   // Current patient form inputs matching the 52 features
   patientData: PatientInputs;
   setPatientData: (data: Partial<PatientInputs>) => void;
@@ -89,27 +91,43 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Mock prediction action matching the contract's response shape
   runPrediction: async () => {
     set({ isLoading: true });
+
     try {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      
+      const { patientData } = get();
+
+      const result = await predictPatient(patientData);
+
       set({
+        predictionResult: result,
         isLoading: false,
-        predictionResult: {
-          predictions: {
-            Cath: { probability: 0.8231, label: 'CAD', threshold: 0.5 },
-            LAD:  { probability: 0.6412, label: 'Stenotic', threshold: 0.5 },
-            LCX:  { probability: 0.3105, label: 'Normal', threshold: 0.5 },
-            RCA:  { probability: 0.4688, label: 'Normal', threshold: 0.5 },
-          },
-          derived_features: { BMI: 27.18, Obesity: 1 },
-          model_version: 'stub-0',
-        },
       });
     } catch (error) {
-      console.error('Prediction failed', error);
-      set({ isLoading: false });
-    }
-  },
+    console.error("Prediction failed", error);
+
+    set({
+      isLoading: false,
+    });
+  }
+},
+loadSample: async (name) => {
+  set({ isLoading: true });
+
+  try {
+    const samples = await getSamples();
+
+    set({
+      patientData: samples[name],
+      predictionResult: null,
+      isLoading: false,
+    });
+  } catch (error) {
+    console.error("Failed to load sample", error);
+
+    set({
+      isLoading: false,
+    });
+  }
+},
 
   selectedVessel: 'LAD',
   setSelectedVessel: (vessel) => set({ selectedVessel: vessel }),

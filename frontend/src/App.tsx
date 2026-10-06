@@ -6,8 +6,12 @@ import { useAppStore } from "./store/useAppStore";
 import { getRiskColor } from "./scene/riskColor";
 import { VitalsTable } from "./components/VitalsTable";
 
+import type { SampleKey } from "./types/api";
 export default function App() {
-  const { runPrediction, isLoading, predictionResult } = useAppStore();
+  const { runPrediction, loadSample,isLoading, predictionResult } = useAppStore(); // <-- Add this
+  const isStubPrediction =
+    predictionResult?.model_version.startsWith("stub") ?? false;
+  const [sampleMenuOpen, setSampleMenuOpen] = useState(false);
   const [showBanner, setShowBanner] = useState(true);
   const [selectedVessel, setSelectedVessel] = useState<"LAD" | "LCX" | "RCA">("LAD");
   // State to toggle between the dashboard and the clinical input form
@@ -103,7 +107,21 @@ export default function App() {
           <button className="dismiss-button" onClick={() => setShowBanner(false)}>Dismiss</button>
         </div>
       )}
-
+    {isStubPrediction && (
+    <div
+      style={{
+        margin: "12px 0",
+        padding: "12px 16px",
+        border: "1px solid #FFC145",
+        borderRadius: "8px",
+        background: "rgba(255, 193, 69, 0.12)",
+        fontSize: "14px",
+        fontWeight: 600,
+      }}
+    >
+      Demo mode: predictions are generated using fallback stub data because real model artifacts are not loaded.
+    </div>
+  )}
       {/* Header */}
       <header className="top-bar">
         <div className="cad-vision" onClick={() => setShowForm(false)} style={{ cursor: 'pointer' }}>
@@ -115,9 +133,49 @@ export default function App() {
             {isDark ? "Light" : "Dark"}
           </button>
 
-          <button className="nav-btn" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <BarChart3 size={18} /> Load sample patient
-          </button>
+          <div className="sample-menu-wrapper">
+            <button
+              type="button"
+              className="nav-btn sample-menu-trigger"
+              onClick={() => setSampleMenuOpen((open) => !open)}
+              disabled={isLoading}
+              aria-haspopup="menu"
+              aria-expanded={sampleMenuOpen}
+            >
+              <BarChart3 size={18} />
+              <span>{isLoading ? "Loading..." : "Load sample patient"}</span>
+              <span
+                className={`sample-menu-chevron ${sampleMenuOpen ? "open" : ""}`}
+                aria-hidden="true"
+              >
+                ▾
+              </span>
+            </button>
+
+            {sampleMenuOpen && (
+              <div className="sample-menu" role="menu">
+                {[
+                  { key: "low_risk", label: "Low risk patient", hint: "Lower-risk profile" },
+                  { key: "medium_risk", label: "Medium risk patient", hint: "Intermediate-risk profile" },
+                  { key: "high_risk", label: "High risk patient", hint: "Higher-risk profile" },
+                ].map((option) => (
+                  <button
+                    type="button"
+                    key={option.key}
+                    className="sample-menu-item"
+                    role="menuitem"
+                    onClick={async () => {
+                      setSampleMenuOpen(false);
+                      await loadSample(option.key as SampleKey);
+                    }}
+                  >
+                    <span className="sample-menu-item-label">{option.label}</span>
+                    <span className="sample-menu-item-hint">{option.hint}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Toggle showForm state on click */}
           <button
