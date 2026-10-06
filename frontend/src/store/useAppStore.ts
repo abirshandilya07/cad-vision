@@ -1,7 +1,7 @@
 // src/store/useAppStore.ts
 import { create } from 'zustand';
-import { PatientInputs, PredictionResponse,SampleKey } from '../types/api';
-import { predictPatient,getSamples } from "../api/client";
+import { PatientInputs, PredictionResponse,SampleKey,ExplainResponse } from '../types/api';
+import { predictPatient,getSamples,explainPatient } from "../api/client";
 
 interface AppState {
   loadSample: (name: SampleKey) => Promise<void>;
@@ -13,6 +13,7 @@ interface AppState {
   // API loading & prediction state
   isLoading: boolean;
   predictionResult: PredictionResponse | null;
+  explanationResult: ExplainResponse | null;
   runPrediction: () => Promise<void>;
 
   // Selected vessel state
@@ -87,25 +88,49 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   isLoading: false,
   predictionResult: null,
+  explanationResult: null,
 
   // Mock prediction action matching the contract's response shape
   runPrediction: async () => {
-    set({ isLoading: true });
+  set({
+    isLoading: true,
+    explanationResult: null,
+  });
 
+  try {
+    const { patientData } = get();
+
+    // Prediction is the main operation.
+    const prediction = await predictPatient(patientData);
+
+    set({
+      predictionResult: prediction,
+    });
+
+    // Explanation is optional. In stub mode this returns null.
     try {
-      const { patientData } = get();
-
-      const result = await predictPatient(patientData);
+      const explanation = await explainPatient(patientData);
 
       set({
-        predictionResult: result,
-        isLoading: false,
+        explanationResult: explanation,
       });
     } catch (error) {
+      console.error("Explanation failed", error);
+
+      set({
+        explanationResult: null,
+      });
+    }
+
+    set({
+      isLoading: false,
+    });
+  } catch (error) {
     console.error("Prediction failed", error);
 
     set({
       isLoading: false,
+      explanationResult: null,
     });
   }
 },
@@ -118,6 +143,7 @@ loadSample: async (name) => {
     set({
       patientData: samples[name],
       predictionResult: null,
+      explanationResult: null,
       isLoading: false,
     });
   } catch (error) {

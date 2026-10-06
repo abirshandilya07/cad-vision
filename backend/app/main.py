@@ -1,5 +1,3 @@
-"""STUB API. /predict returns placeholder values so the frontend can be built now.
-Replace predict logic with real models loaded from ml/artifacts (owner B)."""
 import json
 import os
 from pathlib import Path
@@ -8,7 +6,7 @@ from typing import Dict, Any
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from .services.model_store import get_store,ModelInputError
+from .services.model_store import get_store,ModelInputError,ExplanationUnavailableError
 from fastapi.responses import JSONResponse
 ROOT = Path(os.getenv("REPO_ROOT", Path(__file__).resolve().parents[2]))
 SCHEMA_PATH = ROOT / "ml" / "schema" / "feature_schema.json"
@@ -28,6 +26,17 @@ async def model_input_error_handler(
             "detail": str(exc)
         },
     )
+@app.exception_handler(ExplanationUnavailableError)
+async def explanation_unavailable_handler(
+    request: Request,
+    exc: ExplanationUnavailableError,
+):
+    return JSONResponse(
+        status_code=503,
+        content={
+            "detail": str(exc)
+        },
+    )
 class PredictRequest(BaseModel):
     features: Dict[str, Any]
 
@@ -42,11 +51,15 @@ class PredictResponse(BaseModel):
 def health():
     return get_store().status()
 
-
 @app.post("/predict")
 def predict(req: PredictRequest):
     store = get_store()
     return store.predict(req.features)
+
+@app.post("/explain")
+def explain(req: PredictRequest):
+    store = get_store()
+    return store.explain(req.features)
 
 @app.get("/schema")
 def schema():

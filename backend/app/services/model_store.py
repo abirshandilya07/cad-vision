@@ -46,6 +46,8 @@ from typing import Any
 from ml.config import THRESHOLDS
 import joblib
 import pandas as pd
+import numpy as np
+import shap
 
 log = logging.getLogger("cad.model_store")
 
@@ -60,7 +62,8 @@ class ModelInputError(ValueError):
     safety net so a bug never turns into a confusing pandas/sklearn error.
     """
 
-
+class ExplanationUnavailableError(RuntimeError):
+    """Raised when a real-model SHAP explanation cannot be produced."""
 # --------------------------------------------------------------------------- paths
 # --------------------------------------------------------------------------- paths
 
@@ -313,7 +316,125 @@ class ModelStore:
             "derived_features": {"BMI": round(derived["BMI"], 2), "Obesity": derived["Obesity"]},
             "model_version": self.model_version,
         }
+    def explain(self, features: dict[str, Any]) -> dict:
+        """
+    Generate local SHAP explanations for the real loaded models.
 
+    Stub predictions are deliberately not explained because fake SHAP values
+    would be misleading.
+        """
+        frame = self.build_frame(features)
+
+        explanations: dict[str, Any] = {}
+        global_importance: dict[str, list[dict[str, Any]]] = {}
+
+        real_targets = [
+            t for t in self.targets
+            if t["name"] in self.models
+        ]
+
+        if not real_targets:
+            raise ExplanationUnavailableError(
+                "SHAP explanations require real model artifacts; "
+                "the backend is currently running in stub mode."
+            )
+
+        for target in real_targets:
+            name = target["name"]
+            model = self.models[name]
+            positive_col = self._positive_col[name]
+
+            # Use the schema defaults as a stable baseline row.
+            default_features = {
+                feature_name: spec["default"]
+                for feature_name, spec in self._inputs.items()
+            }
+
+            background = self.build_frame(default_features)
+
+            def prediction_fn(values):
+                df = pd.DataFrame(values, columns=self.column_order)
+                probabilities = model.predict_proba(df)
+                return probabilities[:, positive_col]
+
+            explainer = shap.Explainer(
+                prediction_fn,
+                background,
+                feature_names=self.column_order,
+            )
+
+            shap_result = explainer(frame)
+
+            values = np.asarray(shap_result.values)
+
+            # One input row -> one vector of feature SHAP values.
+            if values.ndim == 2:
+                shap_values = values[0]
+            else:
+                shap_values = values.reshape(-1)
+
+            base_values = np.asarray(shap_result.base_values).reshape(-1)
+            base_value = float(base_values[0])
+
+            probability = float(
+                model.predict_proba(frame)[0][positive_col]
+            )
+
+            feature_items = []
+
+            for feature_name, shap_value in zip(
+                self.column_order,
+                shap_values,
+            ):
+                raw_value = frame.iloc[0][feature_name]
+
+                if hasattr(raw_value, "item"):
+                    raw_value = raw_value.item()
+
+                value = float(shap_value)
+
+                feature_items.append(
+                    {
+                        "feature": feature_name,
+                        "value": raw_value,
+                        "shap": round(value, 6),
+                        "direction": (
+                            "increases" if value >= 0 else "decreases"
+                        ),
+                    }
+                )
+
+            feature_items.sort(
+                key=lambda item: abs(item["shap"]),
+                reverse=True,
+            )
+
+            top_features = feature_items[:5]
+
+            explanations[name] = {
+                "probability": round(probability, 4),
+                "base_value": round(base_value, 6),
+                "top_features": top_features,
+                "narrative": (
+                    f"Top factors influencing the {name} prediction "
+                    "for this patient."
+                ),
+            }
+
+            global_importance[name] = [
+                {
+                    "feature": item["feature"],
+                    "importance": round(abs(item["shap"]), 6),
+                }
+                for item in feature_items[:10]
+            ]
+
+        return {
+            "shap_units": "probability",
+            "explanations": explanations,
+            "global_importance": global_importance,
+            "model_version": self.model_version,
+        }
 
 # --------------------------------------------------------------------------- singleton
 _store: ModelStore | None = None

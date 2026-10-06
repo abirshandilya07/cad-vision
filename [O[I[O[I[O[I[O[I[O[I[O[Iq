@@ -1,0 +1,197 @@
+[1mdiff --git a/backend/app/main.py b/backend/app/main.py[m
+[1mindex 2353d4e..c6d0ffc 100644[m
+[1m--- a/backend/app/main.py[m
+[1m+++ b/backend/app/main.py[m
+[36m@@ -1,5 +1,3 @@[m
+[31m-"""STUB API. /predict returns placeholder values so the frontend can be built now.[m
+[31m-Replace predict logic with real models loaded from ml/artifacts (owner B)."""[m
+ import json[m
+ import os[m
+ from pathlib import Path[m
+[1mdiff --git a/backend/app/services/model_store.py b/backend/app/services/model_store.py[m
+[1mindex 6c5f5cf..61f2af7 100644[m
+[1m--- a/backend/app/services/model_store.py[m
+[1m+++ b/backend/app/services/model_store.py[m
+[36m@@ -46,6 +46,8 @@[m [mfrom typing import Any[m
+ from ml.config import THRESHOLDS[m
+ import joblib[m
+ import pandas as pd[m
+[32m+[m[32mimport numpy as np[m
+[32m+[m[32mimport shap[m
+ [m
+ log = logging.getLogger("cad.model_store")[m
+ [m
+[36m@@ -60,7 +62,8 @@[m [mclass ModelInputError(ValueError):[m
+     safety net so a bug never turns into a confusing pandas/sklearn error.[m
+     """[m
+ [m
+[31m-[m
+[32m+[m[32mclass ExplanationUnavailableError(RuntimeError):[m
+[32m+[m[32m    """Raised when a real-model SHAP explanation cannot be produced."""[m
+ # --------------------------------------------------------------------------- paths[m
+ # --------------------------------------------------------------------------- paths[m
+ [m
+[36m@@ -313,7 +316,125 @@[m [mclass ModelStore:[m
+             "derived_features": {"BMI": round(derived["BMI"], 2), "Obesity": derived["Obesity"]},[m
+             "model_version": self.model_version,[m
+         }[m
+[32m+[m[32m    def explain(self, features: dict[str, Any]) -> dict:[m
+[32m+[m[32m        """[m
+[32m+[m[32m    Generate local SHAP explanations for the real loaded models.[m
+[32m+[m
+[32m+[m[32m    Stub predictions are deliberately not explained because fake SHAP values[m
+[32m+[m[32m    would be misleading.[m
+[32m+[m[32m        """[m
+[32m+[m[32m        frame = self.build_frame(features)[m
+[32m+[m
+[32m+[m[32m        explanations: dict[str, Any] = {}[m
+[32m+[m[32m        global_importance: dict[str, list[dict[str, Any]]] = {}[m
+[32m+[m
+[32m+[m[32m        real_targets = [[m
+[32m+[m[32m            t for t in self.targets[m
+[32m+[m[32m            if t["name"] in self.models[m
+[32m+[m[32m        ][m
+[32m+[m
+[32m+[m[32m        if not real_targets:[m
+[32m+[m[32m            raise ExplanationUnavailableError([m
+[32m+[m[32m                "SHAP explanations require real model artifacts; "[m
+[32m+[m[32m                "the backend is currently running in stub mode."[m
+[32m+[m[32m            )[m
+[32m+[m
+[32m+[m[32m        for target in real_targets:[m
+[32m+[m[32m            name = target["name"][m
+[32m+[m[32m            model = self.models[name][m
+[32m+[m[32m            positive_col = self._positive_col[name][m
+[32m+[m
+[32m+[m[32m            # Use the schema defaults as a stable baseline row.[m
+[32m+[m[32m            default_features = {[m
+[32m+[m[32m                feature_name: spec["default"][m
+[32m+[m[32m                for feature_name, spec in self._inputs.items()[m
+[32m+[m[32m            }[m
+[32m+[m
+[32m+[m[32m            background = self.build_frame(default_features)[m
+[32m+[m
+[32m+[m[32m            def prediction_fn(values):[m
+[32m+[m[32m                df = pd.DataFrame(values, columns=self.column_order)[m
+[32m+[m[32m                probabilities = model.predict_proba(df)[m
+[32m+[m[32m                return probabilities[:, positive_col][m
+[32m+[m
+[32m+[m[32m            explainer = shap.Explainer([m
+[32m+[m[32m                prediction_fn,[m
+[32m+[m[32m                background,[m
+[32m+[m[32m                feature_names=self.column_order,[m
+[32m+[m[32m            )[m
+[32m+[m
+[32m+[m[32m            shap_result = explainer(frame)[m
+ [m
+[32m+[m[32m            values = np.asarray(shap_result.values)[m
+[32m+[m
+[32m+[m[32m            # One input row -> one vector of feature SHAP values.[m
+[32m+[m[32m            if values.ndim == 2:[m
+[32m+[m[32m                shap_values = values[0][m
+[32m+[m[32m            else:[m
+[32m+[m[32m                shap_values = values.reshape(-1)[m
+[32m+[m
+[32m+[m[32m            base_values = np.asarray(shap_result.base_values).reshape(-1)[m
+[32m+[m[32m            base_value = float(base_values[0])[m
+[32m+[m
+[32m+[m[32m            probability = float([m
+[32m+[m[32m                model.predict_proba(frame)[0][positive_col][m
+[32m+[m[32m            )[m
+[32m+[m
+[32m+[m[32m            feature_items = [][m
+[32m+[m
+[32m+[m[32m            for feature_name, shap_value in zip([m
+[32m+[m[32m                self.column_order,[m
+[32m+[m[32m                shap_values,[m
+[32m+[m[32m            ):[m
+[32m+[m[32m                raw_value = frame.iloc[0][feature_name][m
+[32m+[m
+[32m+[m[32m                if hasattr(raw_value, "item"):[m
+[32m+[m[32m                    raw_value = raw_value.item()[m
+[32m+[m
+[32m+[m[32m                value = float(shap_value)[m
+[32m+[m
+[32m+[m[32m                feature_items.append([m
+[32m+[m[32m                    {[m
+[32m+[m[32m                        "feature": feature_name,[m
+[32m+[m[32m                        "value": raw_value,[m
+[32m+[m[32m                        "shap": round(value, 6),[m
+[32m+[m[32m                        "direction": ([m
+[32m+[m[32m                            "increases" if value >= 0 else "decreases"[m
+[32m+[m[32m                        ),[m
+[32m+[m[32m                    }[m
+[32m+[m[32m                )[m
+[32m+[m
+[32m+[m[32m            feature_items.sort([m
+[32m+[m[32m                key=lambda item: abs(item["shap"]),[m
+[32m+[m[32m                reverse=True,[m
+[32m+[m[32m            )[m
+[32m+[m
+[32m+[m[32m            top_features = feature_items[:5][m
+[32m+[m
+[32m+[m[32m            explanations[name] = {[m
+[32m+[m[32m                "probability": round(probability, 4),[m
+[32m+[m[32m                "base_value": round(base_value, 6),[m
+[32m+[m[32m                "top_features": top_features,[m
+[32m+[m[32m                "narrative": ([m
+[32m+[m[32m                    f"Top factors influencing the {name} prediction "[m
+[32m+[m[32m                    "for this patient."[m
+[32m+[m[32m                ),[m
+[32m+[m[32m            }[m
+[32m+[m
+[32m+[m[32m            global_importance[name] = [[m
+[32m+[m[32m                {[m
+[32m+[m[32m                    "feature": item["feature"],[m
+[32m+[m[32m                    "importance": round(abs(item["shap"]), 6),[m
+[32m+[m[32m                }[m
+[32m+[m[32m                for item in feature_items[:10][m
+[32m+[m[32m            ][m
+[32m+[m
+[32m+[m[32m        return {[m
+[32m+[m[32m            "shap_units": "probability",[m
+[32m+[m[32m            "explanations": explanations,[m
+[32m+[m[32m            "global_importance": global_importance,[m
+[32m+[m[32m            "model_version": self.model_version,[m
+[32m+[m[32m        }[m
+ [m
+ # --------------------------------------------------------------------------- singleton[m
+ _store: ModelStore | None = None[m
+[1mdiff --git a/backend/requirements.txt b/backend/requirements.txt[m
+[1mindex 641dbed..bb61551 100644[m
+[1m--- a/backend/requirements.txt[m
+[1m+++ b/backend/requirements.txt[m
+[36m@@ -5,4 +5,5 @@[m [mpandas==3.0.6[m
+ joblib==1.6.0[m
+ scikit-learn==1.9.1[m
+ pytest==9.1.1[m
+[31m-httpx==0.28.1[m
+\ No newline at end of file[m
+[32m+[m[32mhttpx==0.28.1[m
+[32m+[m[32mshap==0.52.0[m
+\ No newline at end of file[m
+[1mdiff --git a/frontend/src/App.tsx b/frontend/src/App.tsx[m
+[1mindex 7661cb4..d8c06bf 100644[m
+[1m--- a/frontend/src/App.tsx[m
+[1m+++ b/frontend/src/App.tsx[m
+[36m@@ -41,6 +41,9 @@[m [mexport default function App() {[m
+   const overallRisk = predictionResult [m
+     ? Math.round(predictionResult.predictions.Cath.probability * 100) [m
+     : 0;[m
+[32m+[m[32m  const overallRiskProfile = getRiskProfile([m
+[32m+[m[32m    predictionResult?.predictions.Cath.probability[m
+[32m+[m[32m  );[m
+ [m
+   // Map the API results to the vessel cards[m
+   const vessels = {[m
+[36m@@ -252,7 +255,9 @@[m [mexport default function App() {[m
+                   <div className="panel-title">Overall CAD Risk</div>[m
+                   <div style={{ textAlign: "right" }}>[m
+                     <div style={{ fontSize: "56px", fontWeight: 700, lineHeight: "50px", letterSpacing: "-2px" }}>{overallRisk}%</div>[m
+[31m-                    <div style={{ fontSize: "10px", color: "#d33f38", fontWeight: 700, letterSpacing: "1px" }}>ELEVATED RISK</div>[m
+[32m+[m[32m                    <div style={{fontSize: "10px",color: overallRiskProfile.color,fontWeight: 700,letterSpacing: "1px",}}>[m
+[32m+[m[32m                      {predictionResult ? overallRiskProfile.level : "NO PREDICTION"}[m
+[32m+[m[32m                    </div>[m
+                   </div>[m
+                 </div>[m
+                 <div className="grid-line" style={{ margin: "16px 0" }} />[m

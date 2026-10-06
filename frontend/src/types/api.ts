@@ -92,8 +92,22 @@ export interface ExplanationTargetResult {
 
 export interface ExplainResponse {
   shap_units: 'log_odds' | 'probability';
-  explanations: Record<TargetKey, ExplanationTargetResult>;
-  global_importance: Record<TargetKey, Array<{ feature: string; importance: number }>>;
+
+  explanations: Partial<
+    Record<TargetKey, ExplanationTargetResult>
+  >;
+
+  global_importance: Partial<
+    Record<
+      TargetKey,
+      Array<{
+        feature: string;
+        importance: number;
+      }>
+    >
+  >;
+
+  model_version: string;
 }
 
 export interface MetricsResponse {
