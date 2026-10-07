@@ -72,9 +72,30 @@ function HeartModel({ vessels, selectedVessel, onVesselSelect, }: HeartSceneProp
     ) {
       return;
     }
+    const pulse = (Math.sin(performance.now() * 0.004) + 1) / 2;
 
-  // rest of your code...
-    const ladTarget =
+    const ladHighRisk = vessels.LAD.probability >= 0.8;
+
+    if (ladGlowMaterial) {
+      ladGlowMaterial.opacity = ladHighRisk
+        ? 0.08 + pulse * 0.10
+        : 0;
+    }
+    const lcxHighRisk = vessels.LCX.probability >= 0.8;
+    const rcaHighRisk = vessels.RCA.probability >= 0.8;
+
+    if (lcxGlowMaterial) {
+      lcxGlowMaterial.opacity = lcxHighRisk
+        ? 0.08 + pulse * 0.10
+        : 0;
+    }
+
+    if (rcaGlowMaterial) {
+      rcaGlowMaterial.opacity = rcaHighRisk
+        ? 0.08 + pulse * 0.10
+        : 0;
+    }
+    const ladBaseTarget =
       hoveredVessel === "LAD"
         ? 1.0
         : hoveredVessel
@@ -83,7 +104,12 @@ function HeartModel({ vessels, selectedVessel, onVesselSelect, }: HeartSceneProp
             ? 1.0
             : 0.25;
 
-    const lcxTarget =
+    const ladTarget =
+      vessels.LAD.probability >= 0.5
+        ? ladBaseTarget * (0.65 + pulse * 0.35)
+        : ladBaseTarget;
+
+    const lcxBaseTarget =
       hoveredVessel === "LCX"
         ? 1.0
         : hoveredVessel
@@ -92,7 +118,12 @@ function HeartModel({ vessels, selectedVessel, onVesselSelect, }: HeartSceneProp
             ? 1.0
             : 0.25;
 
-    const rcaTarget =
+    const lcxTarget =
+      vessels.LCX.probability >= 0.8
+        ? lcxBaseTarget * (0.65 + pulse * 0.35)
+        : lcxBaseTarget;
+    
+    const rcaBaseTarget =
       hoveredVessel === "RCA"
         ? 1.0
         : hoveredVessel
@@ -100,6 +131,11 @@ function HeartModel({ vessels, selectedVessel, onVesselSelect, }: HeartSceneProp
           : selectedVessel === "RCA"
             ? 1.0
             : 0.25;
+
+    const rcaTarget =
+      vessels.RCA.probability >= 0.8
+        ? rcaBaseTarget * (0.65 + pulse * 0.35)
+        : rcaBaseTarget;
 
     ladMaterialRef.current.opacity = THREE.MathUtils.damp(
       ladMaterialRef.current.opacity,
@@ -121,6 +157,7 @@ function HeartModel({ vessels, selectedVessel, onVesselSelect, }: HeartSceneProp
       4,
       delta
     );
+
     if (hoveredVessel) {
       
 }
@@ -284,6 +321,10 @@ const rcaCurve = useMemo(
     ),
   [ladCurve]
 );
+  const ladGlowGeometry = useMemo(
+  () => new THREE.TubeGeometry(ladCurve, 128, 0.014, 12, false),
+  [ladCurve]
+);
   const ladHitGeometry = useMemo(
     () => new THREE.TubeGeometry(ladCurve, 128, 0.025, 12, false),
     [ladCurve]
@@ -298,6 +339,10 @@ const lcxGeometry = useMemo(
       12,
       false
     ),
+  [lcxCurve]
+);
+const lcxGlowGeometry = useMemo(
+  () => new THREE.TubeGeometry(lcxCurve, 128, 0.014, 12, false),
   [lcxCurve]
 );
 const lcxHitGeometry = useMemo(
@@ -315,6 +360,10 @@ const rcaGeometry = useMemo(
       12,
       false
     ),
+  [rcaCurve]
+);
+const rcaGlowGeometry = useMemo(
+  () => new THREE.TubeGeometry(rcaCurve, 128, 0.014, 12, false),
   [rcaCurve]
 );
 const rcaHitGeometry = useMemo(
@@ -342,6 +391,18 @@ const rcaHitGeometry = useMemo(
     ladMaterialRef.current = material;
     return material;
   },
+  [ladColor]
+);
+const ladGlowMaterial = useMemo(
+  () =>
+    new THREE.MeshBasicMaterial({
+      color: ladColor,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      depthTest: true,
+      blending: THREE.AdditiveBlending,
+    }),
   [ladColor]
 );
   const ladHitMaterial = useMemo(
@@ -379,6 +440,18 @@ const ladHitTube = useMemo(
     lcxMaterialRef.current = material;
     return material;
   },
+  [lcxColor]
+);
+const lcxGlowMaterial = useMemo(
+  () =>
+    new THREE.MeshBasicMaterial({
+      color: lcxColor,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      depthTest: true,
+      blending: THREE.AdditiveBlending,
+    }),
   [lcxColor]
 );
 const lcxHitMaterial = useMemo(
@@ -419,7 +492,18 @@ const lcxHitTube = useMemo(
   },
   [rcaColor]
 );
-
+const rcaGlowMaterial = useMemo(
+  () =>
+    new THREE.MeshBasicMaterial({
+      color: rcaColor,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      depthTest: true,
+      blending: THREE.AdditiveBlending,
+    }),
+  [rcaColor]
+);
 const rcaHitMaterial = useMemo(
   () =>
     new THREE.MeshBasicMaterial({
@@ -440,17 +524,26 @@ const rcaHitTube = useMemo(
     () => new THREE.Mesh(ladGeometry, ladMaterial),
     [ladGeometry, ladMaterial]
   );
-
+const ladGlowTube = useMemo(
+  () => new THREE.Mesh(ladGlowGeometry, ladGlowMaterial),
+  [ladGlowGeometry, ladGlowMaterial]
+);
   const lcxTube = useMemo(
     () => new THREE.Mesh(lcxGeometry, lcxMaterial),
     [lcxGeometry, lcxMaterial]
   );
-
+  const lcxGlowTube = useMemo(
+  () => new THREE.Mesh(lcxGlowGeometry, lcxGlowMaterial),
+  [lcxGlowGeometry, lcxGlowMaterial]
+);
   const rcaTube = useMemo(
     () => new THREE.Mesh(rcaGeometry, rcaMaterial),
     [rcaGeometry, rcaMaterial]
   );
-
+const rcaGlowTube = useMemo(
+  () => new THREE.Mesh(rcaGlowGeometry, rcaGlowMaterial),
+  [rcaGlowGeometry, rcaGlowMaterial]
+);
   ladTube.userData.vessel = "LAD";
   lcxTube.userData.vessel = "LCX";
   rcaTube.userData.vessel = "RCA";
@@ -490,8 +583,8 @@ return (
         receiveShadow
       />
 
+      <primitive object={ladGlowTube} />
       <primitive object={ladTube} />
-
       <primitive
         object={ladHitTube}
         onPointerOver={(e: any) => {
@@ -508,6 +601,7 @@ return (
         }}
       />
 
+      <primitive object={lcxTube} />
       <primitive object={lcxTube} />
 
       <primitive
@@ -527,6 +621,7 @@ return (
       />
 
       <primitive object={rcaTube} />
+      <primitive object={rcaGlowTube} />
 
       <primitive
         object={rcaHitTube}
