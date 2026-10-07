@@ -109,6 +109,19 @@ const shapFeatures =
     dir: feature.shap >= 0 ? "pos" : "neg",
   })) ?? [];
 
+const getNarrativeText = () => {
+    if (!predictionResult || !selectedExplanation || selectedExplanation.top_features.length === 0) {
+      return "Waiting for prediction results to generate clinical narrative...";
+    }
+    
+    const topFeature = selectedExplanation.top_features[0];
+    const riskLevel = overallRiskProfile.level.toLowerCase();
+    const vesselName = vessels[selectedVessel].name;
+    const impactDir = topFeature.shap >= 0 ? "increases" : "decreases";
+    
+    return `The model predicts a ${riskLevel} of stenosis in the ${vesselName}. The primary driving factor is the patient's ${topFeature.feature} (${topFeature.value}), which significantly ${impactDir} the estimated probability.`;
+  };
+
   return (
     <div className="app-wrapper">
       {/* Dashboard Animation Keyframes */}
@@ -393,6 +406,22 @@ const shapFeatures =
               {/* Bottom Panel: SHAP Feature Importance */}
               <div className="panel-card" style={{ flex: 1 }}>
                 <div className="panel-title">SHAP Analysis</div>
+                {/* NARRATIVE TEXT BLOCK */}
+                {predictionResult && (
+                  <div style={{ 
+                    marginTop: "12px", 
+                    padding: "16px", 
+                    backgroundColor: "var(--bg-active)", 
+                    borderLeft: `3px solid ${vessels[selectedVessel].color}`,
+                    borderRadius: "4px",
+                    fontSize: "16px", 
+                    color: "var(--text-secondary)",
+                    lineHeight: "1.6"
+                  }}>
+                    <strong style={{ color: "var(--text-primary)" }}>Summary: </strong> 
+                    {getNarrativeText()}
+                  </div>
+                )}
                 <div className="grid-line" style={{ margin: "16px 0" }} />
 
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#168a55", fontWeight: 700, marginBottom: "16px" }}>
