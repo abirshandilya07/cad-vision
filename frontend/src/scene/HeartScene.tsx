@@ -350,7 +350,7 @@ const rcaHitGeometry = useMemo(
       transparent: true,
       opacity: 0,
       depthWrite: true,
-      depthTest: false,
+      depthTest: true,
     }),
   []
 );
@@ -387,7 +387,7 @@ const lcxHitMaterial = useMemo(
       transparent: true,
       opacity: 0,
       depthWrite: false,
-      depthTest: false,
+      depthTest: true,
     }),
   []
 );
@@ -426,7 +426,7 @@ const rcaHitMaterial = useMemo(
       transparent: true,
       opacity: 0,
       depthWrite: false,
-      depthTest: false,
+      depthTest: true,
     }),
   []
 );
