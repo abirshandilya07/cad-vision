@@ -5,19 +5,20 @@ import { PatientForm } from "./components/PatientForm";
 import { useAppStore } from "./store/useAppStore";
 import { getRiskColor } from "./scene/riskColor";
 import { VitalsTable } from "./components/VitalsTable";
+import { WhatIfSlider } from "./components/WhatIfSlider";
 
 import type { SampleKey } from "./types/api";
+
 export default function App() {
-  const { runPrediction, loadSample,isLoading, predictionResult, explanationResult} = useAppStore(); // <-- Add this
-  const isStubPrediction =
-    predictionResult?.model_version.startsWith("stub") ?? false;
+  const { runPrediction, loadSample, isLoading, predictionResult, explanationResult } = useAppStore();
+  const isStubPrediction = predictionResult?.model_version.startsWith("stub") ?? false;
+  
   const [sampleMenuOpen, setSampleMenuOpen] = useState(false);
   const [showBanner, setShowBanner] = useState(true);
   const [selectedVessel, setSelectedVessel] = useState<"LAD" | "LCX" | "RCA">("LAD");
-  // State to toggle between the dashboard and the clinical input form
   const [showForm, setShowForm] = useState(false);
-  // Theme Toggle State
   const [isDark, setIsDark] = useState(false);
+  const [showGlobalView, setShowGlobalView] = useState(false);
 
   const toggleTheme = () => {
     const newTheme = !isDark;
@@ -25,11 +26,8 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', newTheme ? 'dark' : 'light');
   };
 
-  // Helper function to determine risk colors and labels dynamically
   const getRiskProfile = (probability = 0) => {
     const prob = Math.round(probability * 100);
-    
-    // Fetch the THREE.Color from Member C's file and convert to a CSS string
     const dynamicColor = getRiskColor(probability).getStyle();
     
     if (prob >= 70) return { prob, level: "HIGH RISK", status: "STENOTIC", badge: "REVIEW REQUIRED", color: dynamicColor };
@@ -37,15 +35,14 @@ export default function App() {
     return { prob, level: "LOW RISK", status: "NORMAL", badge: "WITHIN RANGE", color: dynamicColor };
   };
 
-  // Dynamically set overall risk (defaulting to 0 before the first prediction is run)
   const overallRisk = predictionResult 
     ? Math.round(predictionResult.predictions.Cath.probability * 100) 
     : 0;
+  
   const overallRiskProfile = getRiskProfile(
     predictionResult?.predictions.Cath.probability
   );
 
-  // Map the API results to the vessel cards
   const vessels = {
     LAD: {
       name: "LAD ARTERY", sub: "LEFT ANTERIOR DESCENDING", 
@@ -82,49 +79,37 @@ export default function App() {
     },
   };
 
-  const selectedExplanation =
-  explanationResult?.explanations[selectedVessel];
+  const activeExplanationKey = showGlobalView ? "Cath" : selectedVessel;
+  const selectedExplanation = explanationResult?.explanations[activeExplanationKey];
 
-const maxShap =
-  selectedExplanation?.top_features.length
-    ? Math.max(
-        ...selectedExplanation.top_features.map((feature) =>
-          Math.abs(feature.shap)
-        )
-      )
+  const maxShap = selectedExplanation?.top_features.length
+    ? Math.max(...selectedExplanation.top_features.map((feature) => Math.abs(feature.shap)))
     : 0;
 
-const shapFeatures =
-  selectedExplanation?.top_features.map((feature) => ({
+  const shapFeatures = selectedExplanation?.top_features.map((feature) => ({
     name: feature.feature,
     sub: `(${String(feature.value)})`,
-    val:
-      feature.shap >= 0
-        ? `+${feature.shap.toFixed(3)}`
-        : feature.shap.toFixed(3),
-    width:
-      maxShap > 0
-        ? `${(Math.abs(feature.shap) / maxShap) * 100}%`
-        : "0%",
+    val: feature.shap >= 0 ? `+${feature.shap.toFixed(3)}` : feature.shap.toFixed(3),
+    width: maxShap > 0 ? `${(Math.abs(feature.shap) / maxShap) * 100}%` : "0%",
     dir: feature.shap >= 0 ? "pos" : "neg",
   })) ?? [];
 
-const getNarrativeText = () => {
+  const getNarrativeText = () => {
     if (!predictionResult || !selectedExplanation || selectedExplanation.top_features.length === 0) {
       return "Waiting for prediction results to generate clinical narrative...";
     }
     
     const topFeature = selectedExplanation.top_features[0];
     const riskLevel = overallRiskProfile.level.toLowerCase();
-    const vesselName = vessels[selectedVessel].name;
+    
+    const locationText = showGlobalView ? "overall Coronary Artery Disease" : `stenosis in the ${vessels[selectedVessel].name}`;
     const impactDir = topFeature.shap >= 0 ? "increases" : "decreases";
     
-    return `The model predicts a ${riskLevel} of stenosis in the ${vesselName}. The primary driving factor is the patient's ${topFeature.feature} (${topFeature.value}), which significantly ${impactDir} the estimated probability.`;
+    return `The model predicts a ${riskLevel} risk of ${locationText}. The primary driving factor is the patient's ${topFeature.feature} (${topFeature.value}), which significantly ${impactDir} the estimated probability.`;
   };
 
   return (
     <div className="app-wrapper">
-      {/* Dashboard Animation Keyframes */}
       <style>{`
         @keyframes dashboardFadeSlideUp {
           from { opacity: 0; transform: translateY(12px); }
@@ -132,6 +117,30 @@ const getNarrativeText = () => {
         }
         .dashboard-animate {
           animation: dashboardFadeSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        
+        /* NEW TOGGLE BUTTON STYLES */
+        .view-toggle-btn {
+          padding: 6px 12px;
+          font-size: 12px;
+          font-weight: 700;
+          font-family: inherit;
+          border-radius: 4px;
+          border: none;
+          cursor: pointer;
+          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .view-toggle-btn.active {
+          background-color: var(--bg-active);
+          color: var(--text-primary);
+        }
+        .view-toggle-btn.inactive {
+          background-color: transparent;
+          color: var(--text-secondary);
+        }
+        .view-toggle-btn.inactive:hover {
+          color: var(--text-primary);
+          transform: scale(1.04);
         }
       `}</style>
 
@@ -142,21 +151,22 @@ const getNarrativeText = () => {
           <button className="dismiss-button" onClick={() => setShowBanner(false)}>Dismiss</button>
         </div>
       )}
-    {isStubPrediction && (
-    <div
-      style={{
-        margin: "12px 0",
-        padding: "12px 16px",
-        border: "1px solid #FFC145",
-        borderRadius: "8px",
-        background: "rgba(255, 193, 69, 0.12)",
-        fontSize: "14px",
-        fontWeight: 600,
-      }}
-    >
-      Demo mode: predictions are generated using fallback stub data because real model artifacts are not loaded.
-    </div>
-  )}
+      {isStubPrediction && (
+        <div
+          style={{
+            margin: "12px 0",
+            padding: "12px 16px",
+            border: "1px solid #FFC145",
+            borderRadius: "8px",
+            background: "rgba(255, 193, 69, 0.12)",
+            fontSize: "14px",
+            fontWeight: 600,
+          }}
+        >
+          Demo mode: predictions are generated using fallback stub data because real model artifacts are not loaded.
+        </div>
+      )}
+
       {/* Header */}
       <header className="top-bar">
         <div className="cad-vision" onClick={() => setShowForm(false)} style={{ cursor: 'pointer' }}>
@@ -179,10 +189,7 @@ const getNarrativeText = () => {
             >
               <BarChart3 size={18} />
               <span>{isLoading ? "Loading..." : "Load sample patient"}</span>
-              <span
-                className={`sample-menu-chevron ${sampleMenuOpen ? "open" : ""}`}
-                aria-hidden="true"
-              >
+              <span className={`sample-menu-chevron ${sampleMenuOpen ? "open" : ""}`} aria-hidden="true">
                 ▾
               </span>
             </button>
@@ -212,7 +219,6 @@ const getNarrativeText = () => {
             )}
           </div>
 
-          {/* Toggle showForm state on click */}
           <button
             className="nav-btn"
             onClick={() => setShowForm(!showForm)}
@@ -221,7 +227,7 @@ const getNarrativeText = () => {
             <Settings size={18} /> {showForm ? "View Dashboard" : "Adjust parameters"}
           </button>
 
-            <button
+          <button
             className="nav-btn nav-btn-primary"
             onClick={runPrediction}
             disabled={isLoading}
@@ -237,7 +243,6 @@ const getNarrativeText = () => {
           </button>
         </div>
       </header>
-      
 
       {/* Workspace */}
       <main className="main-grid">
@@ -256,19 +261,12 @@ const getNarrativeText = () => {
               />      
 
               <div className="selected-overlay">
-                <div
-                  style={{
-                    fontSize: "28px",
-                    color: "#ffffff",
-                    marginBottom: "8px",
-                  }}
-                >
+                <div style={{ fontSize: "28px", color: "#ffffff", marginBottom: "8px" }}>
                   Selected:{" "}
                   <span style={{ color: vessels[selectedVessel].color }}>
                     {vessels[selectedVessel].name}
                   </span>
                 </div>
-
                 <div style={{ fontSize: "22px", color: "#ffffff" }}>
                   Stenosis probability:{" "}
                   <span style={{ color: vessels[selectedVessel].color }}>
@@ -278,7 +276,7 @@ const getNarrativeText = () => {
               </div>
             </section>
 
-            {/* Right Dashboard - Added dashboard-animate class */}
+            {/* Right Dashboard */}
             <section className="dashboard-grid dashboard-animate">
 
               {/* Top Panel: Gauge */}
@@ -287,7 +285,7 @@ const getNarrativeText = () => {
                   <div className="panel-title">Overall CAD Risk</div>
                   <div style={{ textAlign: "right" }}>
                     <div style={{ fontSize: "56px", fontWeight: 700, lineHeight: "50px", letterSpacing: "-2px" }}>{overallRisk}%</div>
-                    <div style={{fontSize: "10px",color: overallRiskProfile.color,fontWeight: 700,letterSpacing: "1px",}}>
+                    <div style={{fontSize: "10px",color: overallRiskProfile.color,fontWeight: 700,letterSpacing: "1px"}}>
                       {predictionResult ? overallRiskProfile.level : "NO PREDICTION"}
                     </div>
                   </div>
@@ -353,7 +351,6 @@ const getNarrativeText = () => {
                       className="vessel-card" 
                       onClick={() => setSelectedVessel(key)}
                       onMouseEnter={(e) => {
-                        // Swapped to grid-line for a much more visible hover state
                         if (!isActive) e.currentTarget.style.backgroundColor = "var(--grid-line)";
                       }}
                       onMouseLeave={(e) => {
@@ -361,7 +358,6 @@ const getNarrativeText = () => {
                       }}
                       style={{
                         border: isActive ? `2px solid ${v.color}` : `2px solid transparent`,
-                        // Reverted back to the clean theme variable instead of the muddy hex opacity
                         backgroundColor: isActive ? "var(--bg-active)" : "var(--bg-panel)",
                         transition: "background-color 0.2s ease, border 0.2s ease"
                       }}
@@ -405,7 +401,26 @@ const getNarrativeText = () => {
 
               {/* Bottom Panel: SHAP Feature Importance */}
               <div className="panel-card" style={{ flex: 1 }}>
-                <div className="panel-title">SHAP Analysis</div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div className="panel-title">SHAP Analysis</div>
+                  
+                  {/* GLOBAL VS VESSEL TOGGLE */}
+                  <div style={{ display: "flex", gap: "4px", backgroundColor: "var(--bg-panel)", padding: "4px", borderRadius: "6px", border: "1px solid var(--grid-line)" }}>
+                    <button 
+                      className={`view-toggle-btn ${!showGlobalView ? 'active' : 'inactive'}`}
+                      onClick={() => setShowGlobalView(false)}
+                    >
+                      VESSEL SPECIFIC
+                    </button>
+                    <button 
+                      className={`view-toggle-btn ${showGlobalView ? 'active' : 'inactive'}`}
+                      onClick={() => setShowGlobalView(true)}
+                    >
+                      GLOBAL OVERALL
+                    </button>
+                  </div>
+                </div>
+
                 {/* NARRATIVE TEXT BLOCK */}
                 {predictionResult && (
                   <div style={{ 
@@ -422,6 +437,33 @@ const getNarrativeText = () => {
                     {getNarrativeText()}
                   </div>
                 )}
+
+                {/* WHAT-IF SLIDER */}
+                {predictionResult && selectedExplanation && selectedExplanation.top_features.length > 0 ? (
+                  <WhatIfSlider featureName={selectedExplanation.top_features[0].feature} />
+                ) : (
+                  <div style={{ 
+                    marginTop: "16px", 
+                    padding: "16px", 
+                    backgroundColor: "var(--bg-panel)", 
+                    borderRadius: "8px",
+                    border: "1px dashed var(--grid-line)",
+                    opacity: 0.6,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minHeight: "92px"
+                  }}>
+                    <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-secondary)", marginBottom: "4px" }}>
+                      Interactive "What-If" Analysis
+                    </span>
+                    <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
+                      Run a prediction to unlock live risk simulations.
+                    </span>
+                  </div>
+                )}
+                
                 <div className="grid-line" style={{ margin: "16px 0" }} />
 
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#168a55", fontWeight: 700, marginBottom: "16px" }}>
@@ -433,85 +475,55 @@ const getNarrativeText = () => {
                   <div style={{ position: "absolute", left: "calc(160px + 50% - 4px)", top: "-18px", fontSize: "12px", fontWeight: 700 }}>0</div>
 
                   {selectedExplanation ? (
-  shapFeatures.map((f, i) => (
-    <div key={i} className="shap-row">
-      <div className="shap-label">
-        {f.name}
-        <span className="shap-sub">{f.sub}</span>
-      </div>
+                    shapFeatures.map((f, i) => (
+                      <div key={i} className="shap-row">
+                        <div className="shap-label">
+                          {f.name}
+                          <span className="shap-sub">{f.sub}</span>
+                        </div>
 
-      <div className="shap-track">
-        <div className="shap-neg-container">
-          {f.dir === "neg" && (
-            <>
-              <span
-                style={{
-                  fontSize: "12px",
-                  color: "#168a55",
-                }}
-              >
-                {f.val}
-              </span>
+                        <div className="shap-track">
+                          <div className="shap-neg-container">
+                            {f.dir === "neg" && (
+                              <>
+                                <span style={{ fontSize: "12px", color: "#168a55" }}>
+                                  {f.val}
+                                </span>
+                                <div className="shap-bar shap-bar-neg" style={{ width: f.width }} />
+                              </>
+                            )}
+                          </div>
 
-              <div
-                className="shap-bar shap-bar-neg"
-                style={{ width: f.width }}
-              />
-            </>
-          )}
-        </div>
-
-        <div className="shap-pos-container">
-          {f.dir === "pos" && (
-            <>
-              <div
-                className="shap-bar shap-bar-pos"
-                style={{ width: f.width }}
-              />
-
-              <span
-                style={{
-                  fontSize: "12px",
-                  color: "#d33f38",
-                }}
-              >
-                {f.val}
-              </span>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  ))
-) : (
-  <div
-    style={{
-      padding: "24px",
-      textAlign: "center",
-      color: "var(--text-secondary)",
-      fontSize: "14px",
-    }}
-  >
-    {predictionResult
-      ? "SHAP explanation unavailable while real model artifacts are not loaded."
-      : "Run a prediction to view SHAP analysis."}
-  </div>
-)}
+                          <div className="shap-pos-container">
+                            {f.dir === "pos" && (
+                              <>
+                                <div className="shap-bar shap-bar-pos" style={{ width: f.width }} />
+                                <span style={{ fontSize: "12px", color: "#d33f38" }}>
+                                  {f.val}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div style={{ padding: "24px", textAlign: "center", color: "var(--text-secondary)", fontSize: "14px" }}>
+                      {predictionResult
+                        ? "SHAP explanation unavailable while real model artifacts are not loaded."
+                        : "Run a prediction to view SHAP analysis."}
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid-line" style={{ margin: "16px 0" }} />
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--text-secondary)" }}>
                   <span>SHAP values · Positive = Increases predicted stenosis probability</span>
-                  <span
-  style={{
-    fontWeight: 700,
-    color: "var(--text-primary)",
-  }}
->
-  {selectedExplanation
-    ? `BASE: ${selectedExplanation.base_value.toFixed(3)}`
-    : "BASE: —"}
-</span>
+                  <span style={{ fontWeight: 700, color: "var(--text-primary)" }}>
+                    {selectedExplanation
+                      ? `BASE: ${selectedExplanation.base_value.toFixed(3)}`
+                      : "BASE: —"}
+                  </span>
                 </div>
               </div>
               <VitalsTable/>
@@ -522,4 +534,3 @@ const getNarrativeText = () => {
     </div>
   );
 }
-
