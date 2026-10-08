@@ -52,6 +52,10 @@ function HeartModel({
   const focusTarget = useRef(new THREE.Vector3());
   const focusPosition = useRef(new THREE.Vector3());
   const focusing = useRef(false);
+  const focusStartSpherical = useRef(new THREE.Spherical());
+  const focusEndSpherical = useRef(new THREE.Spherical());
+  const focusProgress = useRef(0);
+
   useEffect(() => {
     scene.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) {
@@ -193,27 +197,59 @@ function HeartModel({
       
 }
   });
-  useFrame((_, delta) => {
-    if (!focusing.current || !controlsRef.current) {
-      return;
-    }
+useFrame((_, delta) => {
+  if (!focusing.current || !controlsRef.current) {
+    return;
+  }
 
-    const controls = controlsRef.current;
+  const controls = controlsRef.current;
 
-    const alpha = 1 - Math.exp(-5 * delta);
+  // Smooth animation progress
+  focusProgress.current = Math.min(
+    focusProgress.current + delta * 2.5,
+    1
+  );
 
-    controls.target.lerp(focusTarget.current, alpha);
-    camera.position.lerp(focusPosition.current, alpha);
+  // Smoothstep
+  const t =
+    focusProgress.current *
+    focusProgress.current *
+    (3 - 2 * focusProgress.current);
 
-    controls.update();
+  // Interpolate spherical coordinates
+  const spherical = new THREE.Spherical();
 
-    if (
-      camera.position.distanceTo(focusPosition.current) < 0.02 &&
-      controls.target.distanceTo(focusTarget.current) < 0.02
-    ) {
-      focusing.current = false;
-    }
-  });
+  spherical.radius = focusStartSpherical.current.radius;
+
+  spherical.theta = THREE.MathUtils.lerp(
+    focusStartSpherical.current.theta,
+    focusEndSpherical.current.theta,
+    t
+  );
+
+  spherical.phi = THREE.MathUtils.lerp(
+    focusStartSpherical.current.phi,
+    focusEndSpherical.current.phi,
+    t
+  );
+
+  // Convert spherical coordinates back to position
+  const newPosition = new THREE.Vector3()
+    .setFromSpherical(spherical)
+    .add(focusTarget.current);
+
+  camera.position.copy(newPosition);
+
+  // IMPORTANT:
+  // Keep rotation axis at the heart center
+  controls.target.copy(focusTarget.current);
+
+  controls.update();
+
+  if (focusProgress.current >= 1) {
+    focusing.current = false;
+  }
+});
 
   const LAD_NAMES = [
     "LAD_01",
@@ -584,38 +620,40 @@ useEffect(() => {
     return;
   }
 
-  // Get the heart's actual center
+  // Find the center of the heart
   const heartBox = new THREE.Box3().setFromObject(scene);
   const heartCenter = new THREE.Vector3();
 
   heartBox.getCenter(heartCenter);
 
-  // Keep rotation axis at the heart center
+  // Keep OrbitControls centered on the heart
   focusTarget.current.copy(heartCenter);
 
-  // Direction from heart center toward selected vessel
-  const vesselDirection = new THREE.Vector3()
+  // Current camera position relative to heart
+  const currentOffset = new THREE.Vector3()
+    .subVectors(camera.position, heartCenter);
+
+  // Desired camera direction:
+  // from heart center toward selected vessel
+  const desiredOffset = new THREE.Vector3()
     .subVectors(target, heartCenter)
     .normalize();
 
-  // Keep roughly the current camera distance
-  const currentDistance =
-    camera.position.distanceTo(heartCenter);
+  // Preserve current camera distance
+  const radius = currentOffset.length();
 
-  const distance = Math.max(
-    1.8,
-    Math.min(currentDistance, 3)
+  // Convert current camera position to spherical coordinates
+  focusStartSpherical.current.setFromVector3(currentOffset);
+
+  // Convert desired direction to spherical coordinates
+  focusEndSpherical.current.setFromVector3(
+    desiredOffset.multiplyScalar(radius)
   );
 
-  // Put camera on the vessel-facing side
-  focusPosition.current
-    .copy(heartCenter)
-    .add(
-      vesselDirection.multiplyScalar(distance)
-    );
-
+  // Start animation
+  focusProgress.current = 0;
   focusing.current = true;
-}, [selectedVessel, vesselCenters, camera, scene]);
+}, [selectedVessel, vesselCenters, camera, scene]);;
 
   ladTube.userData.vessel = "LAD";
   lcxTube.userData.vessel = "LCX";
