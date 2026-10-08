@@ -15,7 +15,6 @@ export default function App() {
   
   const [sampleMenuOpen, setSampleMenuOpen] = useState(false);
   const [showBanner, setShowBanner] = useState(true);
-  // Start with no vessel selected
   const [selectedVessel, setSelectedVessel] = useState<"LAD" | "LCX" | "RCA" | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [isDark, setIsDark] = useState(false);
@@ -80,7 +79,6 @@ export default function App() {
     },
   };
 
-  // Only attempt to pull explanation if a key is valid
   const activeExplanationKey = showGlobalView ? "Cath" : selectedVessel;
   const selectedExplanation = activeExplanationKey ? explanationResult?.explanations[activeExplanationKey] : null;
 
@@ -110,7 +108,6 @@ export default function App() {
     const topFeature = selectedExplanation.top_features[0];
     const riskLevel = overallRiskProfile.level.toLowerCase();
     
-    // Safely use selectedVessel since we null-checked it above
     const locationText = showGlobalView ? "overall Coronary Artery Disease" : `stenosis in the ${vessels[selectedVessel!].name}`;
     const impactDir = topFeature.shap >= 0 ? "increases" : "decreases";
     
@@ -266,6 +263,7 @@ export default function App() {
                 vessels={heartVessels}
                 selectedVessel={selectedVessel}
                 onVesselSelect={setSelectedVessel}
+                isDark={isDark}
               />      
 
               <div className="risk-legend">
