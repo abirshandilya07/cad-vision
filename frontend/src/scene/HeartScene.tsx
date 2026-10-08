@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Bounds, Center, OrbitControls, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { vesselPaths } from "./vesselPaths";
@@ -37,9 +37,40 @@ function DebugPoints() {
     </>
   );
 }
-function HeartModel({ vessels, selectedVessel, onVesselSelect, }: HeartSceneProps) {
+function HeartModel({
+  vessels,
+  selectedVessel,
+  onVesselSelect,
+  transparentHeart,
+  controlsRef,
+}: HeartSceneProps & {
+  transparentHeart: boolean;
+  controlsRef: React.MutableRefObject<any>;
+}) {
   const { scene } = useGLTF("/models/heart_markers.glb");
-  
+  const { camera } = useThree();
+  const focusTarget = useRef(new THREE.Vector3());
+  const focusPosition = useRef(new THREE.Vector3());
+  const focusing = useRef(false);
+  useEffect(() => {
+    scene.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) {
+        return;
+      }
+
+      const materials = Array.isArray(object.material)
+        ? object.material
+        : [object.material];
+
+      materials.forEach((material) => {
+        material.transparent = transparentHeart;
+        material.opacity = transparentHeart ? 0.35 : 1.0;
+        material.depthWrite = !transparentHeart;
+        material.needsUpdate = true;
+      });
+    });
+  }, [scene, transparentHeart]);
+
   const [hoveredVessel, setHoveredVessel] = useState<
     "LAD" | "LCX" | "RCA" | null
   >(null);
@@ -105,7 +136,7 @@ function HeartModel({ vessels, selectedVessel, onVesselSelect, }: HeartSceneProp
             : 0.25;
 
     const ladTarget =
-      vessels.LAD.probability >= 0.5
+      vessels.LAD.probability >= 0.8
         ? ladBaseTarget * (0.65 + pulse * 0.35)
         : ladBaseTarget;
 
@@ -162,42 +193,27 @@ function HeartModel({ vessels, selectedVessel, onVesselSelect, }: HeartSceneProp
       
 }
   });
-  // useFrame(() => {
-  //   const targets = {
-  //     LAD: getRiskColor(vessels.LAD.probability),
-  //     LCX: getRiskColor(vessels.LCX.probability),
-  //     RCA: getRiskColor(vessels.RCA.probability),
-  //   };
+  useFrame((_, delta) => {
+    if (!focusing.current || !controlsRef.current) {
+      return;
+    }
 
-  //   if (ladMaterialRef.current) {
-  //     ladMaterialRef.current.color.lerp(targets.LAD, 0.08);
-  //   }
+    const controls = controlsRef.current;
 
-  //   if (lcxMaterialRef.current) {
-  //     lcxMaterialRef.current.color.lerp(targets.LCX, 0.08);
-  //   }
+    const alpha = 1 - Math.exp(-5 * delta);
 
-  //   if (rcaMaterialRef.current) {
-  //     rcaMaterialRef.current.color.lerp(targets.RCA, 0.08);
-  //   }
-  // });
+    controls.target.lerp(focusTarget.current, alpha);
+    camera.position.lerp(focusPosition.current, alpha);
 
-  // useEffect(() => {
-  //   if (ladMaterialRef.current) {
-  //     ladMaterialRef.current.emissiveIntensity =
-  //       selectedVessel === "LAD" ? 1.0 : 0.15;
-  //   }
+    controls.update();
 
-  //   if (lcxMaterialRef.current) {
-  //     lcxMaterialRef.current.emissiveIntensity =
-  //       selectedVessel === "LCX" ? 1.0 : 0.15;
-  //   }
-
-  //   if (rcaMaterialRef.current) {
-  //     rcaMaterialRef.current.emissiveIntensity =
-  //       selectedVessel === "RCA" ? 1.0 : 0.15;
-  //   }
-  // }, [selectedVessel]);
+    if (
+      camera.position.distanceTo(focusPosition.current) < 0.02 &&
+      controls.target.distanceTo(focusTarget.current) < 0.02
+    ) {
+      focusing.current = false;
+    }
+  });
 
   const LAD_NAMES = [
     "LAD_01",
@@ -410,7 +426,7 @@ const ladGlowMaterial = useMemo(
     new THREE.MeshBasicMaterial({
       transparent: true,
       opacity: 0,
-      depthWrite: true,
+      depthWrite: false,
       depthTest: true,
     }),
   []
@@ -544,6 +560,63 @@ const rcaGlowTube = useMemo(
   () => new THREE.Mesh(rcaGlowGeometry, rcaGlowMaterial),
   [rcaGlowGeometry, rcaGlowMaterial]
 );
+const vesselCenters = useMemo(() => {
+  const getCenter = (mesh: THREE.Mesh) => {
+    const box = new THREE.Box3().setFromObject(mesh);
+    const center = new THREE.Vector3();
+
+    box.getCenter(center);
+
+    return center;
+  };
+
+  return {
+    LAD: getCenter(ladTube),
+    LCX: getCenter(lcxTube),
+    RCA: getCenter(rcaTube),
+  };
+}, [ladTube, lcxTube, rcaTube]);
+
+useEffect(() => {
+  const target = vesselCenters[selectedVessel];
+
+  if (!target) {
+    return;
+  }
+
+  // Get the heart's actual center
+  const heartBox = new THREE.Box3().setFromObject(scene);
+  const heartCenter = new THREE.Vector3();
+
+  heartBox.getCenter(heartCenter);
+
+  // Keep rotation axis at the heart center
+  focusTarget.current.copy(heartCenter);
+
+  // Direction from heart center toward selected vessel
+  const vesselDirection = new THREE.Vector3()
+    .subVectors(target, heartCenter)
+    .normalize();
+
+  // Keep roughly the current camera distance
+  const currentDistance =
+    camera.position.distanceTo(heartCenter);
+
+  const distance = Math.max(
+    1.8,
+    Math.min(currentDistance, 3)
+  );
+
+  // Put camera on the vessel-facing side
+  focusPosition.current
+    .copy(heartCenter)
+    .add(
+      vesselDirection.multiplyScalar(distance)
+    );
+
+  focusing.current = true;
+}, [selectedVessel, vesselCenters, camera, scene]);
+
   ladTube.userData.vessel = "LAD";
   lcxTube.userData.vessel = "LCX";
   rcaTube.userData.vessel = "RCA";
@@ -602,7 +675,7 @@ return (
       />
 
       <primitive object={lcxTube} />
-      <primitive object={lcxTube} />
+      <primitive object={lcxGlowTube} />
 
       <primitive
         object={lcxHitTube}
@@ -647,9 +720,33 @@ export default function HeartScene({
   selectedVessel,
   onVesselSelect,
 }: HeartSceneProps) {
+  const [transparentHeart, setTransparentHeart] = useState(false);
+  const controlsRef = useRef<any>(null);
   return (
-    <div style={{ width: "100%", height: "100%", minHeight: 0 }}>
-      <Canvas
+  <div style={{ width: "100%", height: "100%", minHeight: 0, position: "relative" }}>
+
+    <button
+      onClick={() => setTransparentHeart((value) => !value)}
+      style={{
+        position: "absolute",
+        top: "20px",
+        right: "20px",
+        zIndex: 20,
+        padding: "8px 14px",
+        borderRadius: "8px",
+        border: "1px solid rgba(0, 0, 0, 0.12)",
+        background: "rgba(255, 255, 255, 0.9)",
+        color: "#333",
+        fontSize: "12px",
+        fontWeight: 600,
+        cursor: "pointer",
+        backdropFilter: "blur(6px)",
+      }}
+    >
+      {transparentHeart ? "Anatomy: Transparent" : "Anatomy: Solid"}
+    </button>
+
+    <Canvas
         camera={{
           position: [0, 0, 3],
           fov: 45,
@@ -676,10 +773,13 @@ export default function HeartScene({
             vessels={vessels}
             selectedVessel={selectedVessel}
             onVesselSelect={onVesselSelect}
+            transparentHeart={transparentHeart}
+            controlsRef={controlsRef}
           />
 
 
         <OrbitControls
+          ref={controlsRef}
           enableDamping
           dampingFactor={0.08}
           minDistance={1}
@@ -689,3 +789,4 @@ export default function HeartScene({
     </div>
   );
 }
+
