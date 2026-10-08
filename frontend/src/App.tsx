@@ -260,6 +260,18 @@ export default function App() {
                 onVesselSelect={setSelectedVessel}
               />      
 
+              <div className="risk-legend">
+                <div className="risk-legend-title">Coronary Risk</div>
+
+                <div className="risk-legend-bar" />
+
+                <div className="risk-legend-labels">
+                  <span>0% · LOW</span>
+                  <span>50% · MODERATE</span>
+                  <span>80% · HIGH</span>
+                </div>
+              </div>
+
               <div className="selected-overlay">
                 <div style={{ fontSize: "28px", color: "#ffffff", marginBottom: "8px" }}>
                   Selected:{" "}
