@@ -7,7 +7,7 @@ export function VitalsTable() {
   const hasData = !!predictionResult;
 
   // Determine sex for gender-specific reference ranges
-  const isMale = patientData.Sex === 'Male' || patientData.Sex === 'M';
+  const isMale = patientData.Sex === 'Male';
 
   // Dynamically calculate BMI
   const heightInMeters = patientData.Length / 100;

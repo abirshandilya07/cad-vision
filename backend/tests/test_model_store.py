@@ -83,6 +83,19 @@ def test_frame_columns_follow_schema_order_whatever_the_input_order():
     assert frame.shape == (1, 54)
     pd.testing.assert_frame_equal(frame, store.build_frame(DEFAULTS))
 
+def test_load_reference_frame_uses_model_columns_only():
+    store = ModelStore.load()
+
+    frame = store._load_reference_frame(max_rows=25)
+
+    assert len(frame) <= 25
+    assert list(frame.columns) == store.column_order
+
+    assert "Exertional CP" not in frame.columns
+    assert "Cath" not in frame.columns
+    assert "LAD" not in frame.columns
+    assert "LCX" not in frame.columns
+    assert "RCA" not in frame.columns
 
 def test_encoding_to_dataset_values():
     store = ModelStore(SCHEMA, Path("."))
@@ -105,7 +118,39 @@ def test_derived_columns():
     assert store.build_frame(f).iloc[0]["Obesity"] == "Y"
     assert store.derive(f) == {"BMI": pytest.approx(34.602, abs=1e-3), "Obesity": 1}
 
+def test_global_importance_structure(monkeypatch):
+    store = ModelStore.load()
 
+    # Skip this test when no real models are available.
+    if not store.models:
+        return
+
+    sample_path = REPO_ROOT / "data" / "samples" / "medium_risk.json"
+    features = json.loads(sample_path.read_text(encoding="utf-8"))
+
+    result = store.explain(features)
+
+    assert "global_importance" in result
+    assert isinstance(result["global_importance"], dict)
+
+    for target, items in result["global_importance"].items():
+        assert target in {"Cath", "LAD", "LCX", "RCA"}
+        assert isinstance(items, list)
+        assert len(items) <= 10
+
+        for item in items:
+            assert "feature" in item
+            assert "importance" in item
+            assert isinstance(item["feature"], str)
+            assert isinstance(item["importance"], float)
+            assert item["importance"] >= 0
+
+        importances = [item["importance"] for item in items]
+
+        assert importances == sorted(
+            importances,
+            reverse=True,
+        )
 @pytest.mark.parametrize("bad", [
     dict(DEFAULTS, **{"ST Elevation": 0}),                 # typo'd name (extra key)
     {k: v for k, v in DEFAULTS.items() if k != "Age"},     # missing key

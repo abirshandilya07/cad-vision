@@ -36,7 +36,7 @@ SECURITY NOTE: joblib/pickle files can run code when loaded. Only load artifacts
 come from teammates.
 """
 from __future__ import annotations
-
+from .narrative import build_narrative
 import json
 import logging
 import math
@@ -75,7 +75,7 @@ class ExplanationUnavailableError(RuntimeError):
 # parents[2] -> backend
 # parents[3] -> cad-vision
 REPO_ROOT = Path(__file__).resolve().parents[3]
-
+DEFAULT_REFERENCE_DATA_PATH = REPO_ROOT / "data" / "raw" / "z_alizadeh_sani.xlsx"
 DEFAULT_SCHEMA_PATH = REPO_ROOT / "ml" / "schema" / "feature_schema.json"
 DEFAULT_ARTIFACTS_DIR = REPO_ROOT / "ml" / "artifacts" / "models"
 
@@ -184,7 +184,36 @@ class ModelStore:
             self._version_text = version_file.read_text(encoding="utf-8").strip() or None
 
         log.info("Model store ready: version=%s sources=%s", self.model_version, self.sources)
+    def _load_reference_frame(self, max_rows: int = 100) -> pd.DataFrame:
+        """
+    Load reference patients for global SHAP importance.
 
+    Only model_feature_order columns are used so extra dataset columns
+    such as targets or Exertional CP are ignored.
+        """
+        df = pd.read_excel(DEFAULT_REFERENCE_DATA_PATH)
+
+        missing = [
+            column
+            for column in self.column_order
+            if column not in df.columns
+        ]
+
+        if missing:
+            raise RuntimeError(
+                f"Reference dataset is missing model features: {missing}"
+            )
+
+        frame = df[self.column_order].copy()
+
+        # Limit runtime for the web API.
+        if len(frame) > max_rows:
+            frame = frame.sample(
+                n=max_rows,
+                random_state=42,
+            )
+
+        return frame
     def _check_model(self, model: Any, target: dict) -> int:
         """Run one default row through the model right now, so a structurally broken artifact
         (expects a column we don't send, wrong dtypes, no predict_proba) is found at startup,
@@ -338,7 +367,7 @@ class ModelStore:
                 "SHAP explanations require real model artifacts; "
                 "the backend is currently running in stub mode."
             )
-
+        reference_frame = self._load_reference_frame()
         for target in real_targets:
             name = target["name"]
             model = self.models[name]
@@ -365,6 +394,35 @@ class ModelStore:
 
             shap_result = explainer(frame)
 
+            global_shap_result = explainer(reference_frame)
+
+            global_values = np.asarray(global_shap_result.values)
+
+            if global_values.ndim == 3:
+                global_values = global_values[..., -1]
+
+            mean_abs_shap = np.mean(
+                np.abs(global_values),
+                axis=0,
+            )
+
+            global_items = [
+                {
+                    "feature": feature,
+                    "importance": round(float(importance), 6),
+                }
+                for feature, importance in zip(
+                    self.column_order,
+                    mean_abs_shap,
+                )
+            ]
+
+            global_items.sort(
+                key=lambda item: item["importance"],
+                reverse=True,
+            )
+
+            global_importance[name] = global_items[:10]
             values = np.asarray(shap_result.values)
 
             # One input row -> one vector of feature SHAP values.
@@ -415,19 +473,13 @@ class ModelStore:
                 "probability": round(probability, 4),
                 "base_value": round(base_value, 6),
                 "top_features": top_features,
-                "narrative": (
-                    f"Top factors influencing the {name} prediction "
-                    "for this patient."
+                "narrative": build_narrative(
+                    target=name,
+                    probability=probability,
+                    top_features=top_features,
                 ),
             }
 
-            global_importance[name] = [
-                {
-                    "feature": item["feature"],
-                    "importance": round(abs(item["shap"]), 6),
-                }
-                for item in feature_items[:10]
-            ]
 
         return {
             "shap_units": "probability",
