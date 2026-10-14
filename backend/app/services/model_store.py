@@ -37,6 +37,7 @@ come from teammates.
 """
 from __future__ import annotations
 from .narrative import build_narrative
+from typing import Any
 import json
 import logging
 import math
@@ -159,11 +160,23 @@ class ModelStore:
     def _load_models(self) -> None:
         for t in self.targets:
             name = t["name"]
-            artifact = self.artifacts_dir / f"{name}_model.joblib"
+            artifact_candidates = [
+                self.artifacts_dir / f"{name}_model.joblib",
+                self.artifacts_dir / f"{name}_model.pkl",
+            ]
 
-            if not artifact.is_file():
+            artifact = next(
+                (path for path in artifact_candidates if path.is_file()),
+                None,
+            )
+
+            if artifact is None:
                 self.sources[name] = "stub: artifact not found"
-                log.warning("No artifact for %s at %s, using stub", name, artifact)
+                log.warning(
+                    "No artifact for %s in %s, using stub",
+                    name,
+                    self.artifacts_dir,
+                )
                 continue
 
             try:
@@ -347,19 +360,25 @@ class ModelStore:
         }
     def explain(self, features: dict[str, Any]) -> dict:
         """
-    Generate local SHAP explanations for the real loaded models.
+    Generate local and global SHAP explanations for the real loaded models.
 
     Stub predictions are deliberately not explained because fake SHAP values
     would be misleading.
-        """
+    """
+
+    # ------------------------------------------------------------
+    # 1. Build the current patient's model input
+    # ------------------------------------------------------------
         frame = self.build_frame(features)
 
         explanations: dict[str, Any] = {}
         global_importance: dict[str, list[dict[str, Any]]] = {}
 
+        # Only explain models that were actually loaded.
         real_targets = [
-            t for t in self.targets
-            if t["name"] in self.models
+            target
+            for target in self.targets
+            if target["name"] in self.models
         ]
 
         if not real_targets:
@@ -367,71 +386,136 @@ class ModelStore:
                 "SHAP explanations require real model artifacts; "
                 "the backend is currently running in stub mode."
             )
+
+        # ------------------------------------------------------------
+        # 2. Load reference population ONCE
+        # ------------------------------------------------------------
         reference_frame = self._load_reference_frame()
+
+        # ------------------------------------------------------------
+        # 3. Build the schema-default background row ONCE
+        # ------------------------------------------------------------
+        default_features = {
+            feature_name: spec["default"]
+            for feature_name, spec in self._inputs.items()
+        }
+
+        background = self.build_frame(default_features)
+
+        # ------------------------------------------------------------
+        # 4. Build numeric representations for SHAP
+        #
+        # SHAP's masker cannot safely compare strings such as:
+        # "Male", "N", "Y", etc.
+        #
+        # The real models still receive the original categorical values.
+        # ------------------------------------------------------------
+        combined_frame = pd.concat(
+            [
+                frame,
+                reference_frame,
+                background,
+            ],
+            ignore_index=True,
+        )
+
+        categorical_maps: dict[str, dict[Any, int]] = {}
+        reverse_categorical_maps: dict[str, dict[int, Any]] = {}
+
+        for column in self.column_order:
+            if not pd.api.types.is_numeric_dtype(combined_frame[column]):
+                category_values = (
+                    combined_frame[column]
+                    .dropna()
+                    .unique()
+                    .tolist()
+                )
+
+                categorical_maps[column] = {
+                    value: index
+                    for index, value in enumerate(category_values)
+                }
+
+                reverse_categorical_maps[column] = {
+                    index: value
+                    for value, index in categorical_maps[column].items()
+                }
+
+        # ------------------------------------------------------------
+        # 5. Helper: convert strings -> temporary numbers for SHAP
+        # ------------------------------------------------------------
+        def encode_for_shap(df: pd.DataFrame) -> pd.DataFrame:
+            encoded = df.copy()
+
+            for column, mapping in categorical_maps.items():
+                encoded[column] = encoded[column].map(mapping)
+
+            return encoded.astype(float)
+
+        # SHAP sees these numeric versions.
+        shap_frame = encode_for_shap(frame)
+        shap_reference_frame = encode_for_shap(reference_frame)
+        shap_background = encode_for_shap(background)
+
+        # ------------------------------------------------------------
+        # 6. Explain every real target model
+        # ------------------------------------------------------------
         for target in real_targets:
             name = target["name"]
             model = self.models[name]
             positive_col = self._positive_col[name]
 
-            # Use the schema defaults as a stable baseline row.
-            default_features = {
-                feature_name: spec["default"]
-                for feature_name, spec in self._inputs.items()
-            }
-
-            background = self.build_frame(default_features)
-
+            # --------------------------------------------------------
+            # SHAP will call this function repeatedly.
+            #
+            # SHAP gives us numeric categorical values, so before calling
+            # the real model we convert those temporary numbers back to
+            # the original category values.
+            # --------------------------------------------------------
             def prediction_fn(values):
-                df = pd.DataFrame(values, columns=self.column_order)
+                df = pd.DataFrame(
+                    values,
+                    columns=self.column_order,
+                )
+
+                for column, reverse_mapping in reverse_categorical_maps.items():
+                    df[column] = (
+                        df[column]
+                        .round()
+                        .astype(int)
+                        .map(reverse_mapping)
+                    )
+
                 probabilities = model.predict_proba(df)
+
                 return probabilities[:, positive_col]
 
+            # --------------------------------------------------------
+            # 7. Create SHAP explainer
+            # --------------------------------------------------------
             explainer = shap.Explainer(
                 prediction_fn,
-                background,
+                shap_background,
                 feature_names=self.column_order,
             )
 
-            shap_result = explainer(frame)
+            # --------------------------------------------------------
+            # 8. LOCAL SHAP
+            # One patient's explanation
+            # --------------------------------------------------------
+            shap_result = explainer(shap_frame)
 
-            global_shap_result = explainer(reference_frame)
-
-            global_values = np.asarray(global_shap_result.values)
-
-            if global_values.ndim == 3:
-                global_values = global_values[..., -1]
-
-            mean_abs_shap = np.mean(
-                np.abs(global_values),
-                axis=0,
-            )
-
-            global_items = [
-                {
-                    "feature": feature,
-                    "importance": round(float(importance), 6),
-                }
-                for feature, importance in zip(
-                    self.column_order,
-                    mean_abs_shap,
-                )
-            ]
-
-            global_items.sort(
-                key=lambda item: item["importance"],
-                reverse=True,
-            )
-
-            global_importance[name] = global_items[:10]
             values = np.asarray(shap_result.values)
 
-            # One input row -> one vector of feature SHAP values.
             if values.ndim == 2:
                 shap_values = values[0]
             else:
                 shap_values = values.reshape(-1)
 
-            base_values = np.asarray(shap_result.base_values).reshape(-1)
+            base_values = np.asarray(
+                shap_result.base_values
+            ).reshape(-1)
+
             base_value = float(base_values[0])
 
             probability = float(
@@ -444,6 +528,8 @@ class ModelStore:
                 self.column_order,
                 shap_values,
             ):
+                # Use the ORIGINAL frame here so the response contains
+                # values like "Male" or "N", not the temporary SHAP numbers.
                 raw_value = frame.iloc[0][feature_name]
 
                 if hasattr(raw_value, "item"):
@@ -457,7 +543,9 @@ class ModelStore:
                         "value": raw_value,
                         "shap": round(value, 6),
                         "direction": (
-                            "increases" if value >= 0 else "decreases"
+                            "increases"
+                            if value >= 0
+                            else "decreases"
                         ),
                     }
                 )
@@ -480,15 +568,56 @@ class ModelStore:
                 ),
             }
 
+            # --------------------------------------------------------
+            # 9. GLOBAL SHAP
+            # Importance across reference patients
+            # --------------------------------------------------------
+            global_shap_result = explainer(
+                shap_reference_frame
+            )
 
+            global_values = np.asarray(
+                global_shap_result.values
+            )
+
+            if global_values.ndim == 3:
+                global_values = global_values[..., -1]
+
+            mean_abs_shap = np.mean(
+                np.abs(global_values),
+                axis=0,
+            )
+
+            global_items = [
+                {
+                    "feature": feature,
+                    "importance": round(
+                        float(importance),
+                        6,
+                    ),
+                }
+                for feature, importance in zip(
+                    self.column_order,
+                    mean_abs_shap,
+                )
+            ]
+
+            global_items.sort(
+                key=lambda item: item["importance"],
+                reverse=True,
+            )
+
+            global_importance[name] = global_items[:10]
+
+        # ------------------------------------------------------------
+        # 10. Final API response
+        # ------------------------------------------------------------
         return {
             "shap_units": "probability",
             "explanations": explanations,
             "global_importance": global_importance,
             "model_version": self.model_version,
-        }
-
-# --------------------------------------------------------------------------- singleton
+        }# --------------------------------------------------------------------------- singleton
 _store: ModelStore | None = None
 
 
