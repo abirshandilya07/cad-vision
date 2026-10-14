@@ -118,7 +118,8 @@ class ModelStore:
     def __init__(self, schema: dict, artifacts_dir: Path):
         self.schema = schema
         self.artifacts_dir = Path(artifacts_dir)
-
+        self._explainers: dict[str, Any] = {}
+        self._global_importance_cache: dict[str, list[dict[str, Any]]] = {}
         self.targets: list[dict] = schema["targets"]
         self.column_order: list[str] = schema["model_feature_order"]
         self._inputs: dict[str, dict] = {f["name"]: f for f in schema["features"]}
@@ -197,7 +198,7 @@ class ModelStore:
             self._version_text = version_file.read_text(encoding="utf-8").strip() or None
 
         log.info("Model store ready: version=%s sources=%s", self.model_version, self.sources)
-    def _load_reference_frame(self, max_rows: int = 100) -> pd.DataFrame:
+    def _load_reference_frame(self, max_rows: int = 30) -> pd.DataFrame:
         """
     Load reference patients for global SHAP importance.
 
@@ -493,11 +494,14 @@ class ModelStore:
             # --------------------------------------------------------
             # 7. Create SHAP explainer
             # --------------------------------------------------------
-            explainer = shap.Explainer(
+            if name not in self._explainers:
+                self._explainers[name] = shap.Explainer(
                 prediction_fn,
                 shap_background,
                 feature_names=self.column_order,
             )
+
+            explainer = self._explainers[name]
 
             # --------------------------------------------------------
             # 8. LOCAL SHAP
@@ -572,42 +576,42 @@ class ModelStore:
             # 9. GLOBAL SHAP
             # Importance across reference patients
             # --------------------------------------------------------
-            global_shap_result = explainer(
-                shap_reference_frame
-            )
-
-            global_values = np.asarray(
-                global_shap_result.values
-            )
-
-            if global_values.ndim == 3:
-                global_values = global_values[..., -1]
-
-            mean_abs_shap = np.mean(
-                np.abs(global_values),
-                axis=0,
-            )
-
-            global_items = [
-                {
-                    "feature": feature,
-                    "importance": round(
-                        float(importance),
-                        6,
-                    ),
-                }
-                for feature, importance in zip(
-                    self.column_order,
-                    mean_abs_shap,
+            if name not in self._global_importance_cache:
+                global_shap_result = explainer(
+                    shap_reference_frame
                 )
-            ]
 
-            global_items.sort(
-                key=lambda item: item["importance"],
-                reverse=True,
-            )
+                global_values = np.asarray(
+                    global_shap_result.values
+                )
 
-            global_importance[name] = global_items[:10]
+                if global_values.ndim == 3:
+                    global_values = global_values[..., -1]
+
+                mean_abs_shap = np.mean(
+                    np.abs(global_values),
+                    axis=0,
+                )
+
+                global_items = [
+                    {
+                        "feature": feature,
+                        "importance": round(float(importance), 6),
+                    }
+                    for feature, importance in zip(
+                        self.column_order,
+                        mean_abs_shap,
+                    )
+                ]
+
+                global_items.sort(
+                    key=lambda item: item["importance"],
+                    reverse=True,
+                )
+
+                self._global_importance_cache[name] = global_items[:10]
+
+            global_importance[name] = self._global_importance_cache[name]
 
         # ------------------------------------------------------------
         # 10. Final API response
