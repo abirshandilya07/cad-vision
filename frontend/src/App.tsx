@@ -15,7 +15,7 @@ export default function App() {
   
   const [sampleMenuOpen, setSampleMenuOpen] = useState(false);
   const [showBanner, setShowBanner] = useState(true);
-  const [selectedVessel, setSelectedVessel] = useState<"LAD" | "LCX" | "RCA">("LAD");
+  const [selectedVessel, setSelectedVessel] = useState<"LAD" | "LCX" | "RCA" | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [isDark, setIsDark] = useState(false);
   const [showGlobalView, setShowGlobalView] = useState(false);
@@ -80,7 +80,7 @@ export default function App() {
   };
 
   const activeExplanationKey = showGlobalView ? "Cath" : selectedVessel;
-  const selectedExplanation = explanationResult?.explanations[activeExplanationKey];
+  const selectedExplanation = activeExplanationKey ? explanationResult?.explanations[activeExplanationKey] : null;
 
   const maxShap = selectedExplanation?.top_features.length
     ? Math.max(...selectedExplanation.top_features.map((feature) => Math.abs(feature.shap)))
@@ -95,14 +95,20 @@ export default function App() {
   })) ?? [];
 
   const getNarrativeText = () => {
-    if (!predictionResult || !selectedExplanation || selectedExplanation.top_features.length === 0) {
+    if (!predictionResult) {
       return "Waiting for prediction results to generate clinical narrative...";
+    }
+    if (!showGlobalView && !selectedVessel) {
+      return "Select a specific vessel above to view its clinical narrative, or switch to Global Overall.";
+    }
+    if (!selectedExplanation || selectedExplanation.top_features.length === 0) {
+      return "SHAP explanation currently unavailable for this view.";
     }
     
     const topFeature = selectedExplanation.top_features[0];
     const riskLevel = overallRiskProfile.level.toLowerCase();
     
-    const locationText = showGlobalView ? "overall Coronary Artery Disease" : `stenosis in the ${vessels[selectedVessel].name}`;
+    const locationText = showGlobalView ? "overall Coronary Artery Disease" : `stenosis in the ${vessels[selectedVessel!].name}`;
     const impactDir = topFeature.shap >= 0 ? "increases" : "decreases";
     
     return `The model predicts a ${riskLevel} risk of ${locationText}. The primary driving factor is the patient's ${topFeature.feature} (${topFeature.value}), which significantly ${impactDir} the estimated probability.`;
@@ -119,7 +125,6 @@ export default function App() {
           animation: dashboardFadeSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
         
-        /* NEW TOGGLE BUTTON STYLES */
         .view-toggle-btn {
           padding: 6px 12px;
           font-size: 12px;
@@ -258,13 +263,12 @@ export default function App() {
                 vessels={heartVessels}
                 selectedVessel={selectedVessel}
                 onVesselSelect={setSelectedVessel}
+                isDark={isDark}
               />      
 
               <div className="risk-legend">
                 <div className="risk-legend-title">Coronary Risk</div>
-
                 <div className="risk-legend-bar" />
-
                 <div className="risk-legend-labels">
                   <span>0% · LOW</span>
                   <span>50% · MODERATE</span>
@@ -273,18 +277,26 @@ export default function App() {
               </div>
 
               <div className="selected-overlay">
-                <div style={{ fontSize: "28px", color: "#ffffff", marginBottom: "8px" }}>
-                  Selected:{" "}
-                  <span style={{ color: vessels[selectedVessel].color }}>
-                    {vessels[selectedVessel].name}
-                  </span>
-                </div>
-                <div style={{ fontSize: "22px", color: "#ffffff" }}>
-                  Stenosis probability:{" "}
-                  <span style={{ color: vessels[selectedVessel].color }}>
-                    {vessels[selectedVessel].prob}%
-                  </span>
-                </div>
+                {selectedVessel ? (
+                  <>
+                    <div style={{ fontSize: "28px", color: "#ffffff", marginBottom: "8px" }}>
+                      Selected:{" "}
+                      <span style={{ color: vessels[selectedVessel].color }}>
+                        {vessels[selectedVessel].name}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: "22px", color: "#ffffff" }}>
+                      Stenosis probability:{" "}
+                      <span style={{ color: vessels[selectedVessel].color }}>
+                        {vessels[selectedVessel].prob}%
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ fontSize: "22px", color: "rgba(255, 255, 255, 0.7)" }}>
+                    No vessel selected
+                  </div>
+                )}
               </div>
             </section>
 
@@ -434,21 +446,21 @@ export default function App() {
                 </div>
 
                 {/* NARRATIVE TEXT BLOCK */}
-                {predictionResult && (
-                  <div style={{ 
-                    marginTop: "12px", 
-                    padding: "16px", 
-                    backgroundColor: "var(--bg-active)", 
-                    borderLeft: `3px solid ${vessels[selectedVessel].color}`,
-                    borderRadius: "4px",
-                    fontSize: "16px", 
-                    color: "var(--text-secondary)",
-                    lineHeight: "1.6"
-                  }}>
-                    <strong style={{ color: "var(--text-primary)" }}>Summary: </strong> 
-                    {getNarrativeText()}
-                  </div>
-                )}
+                <div style={{ 
+                  marginTop: "12px", 
+                  padding: "16px", 
+                  backgroundColor: "var(--bg-active)", 
+                  borderLeft: `3px solid ${
+                    showGlobalView ? overallRiskProfile.color : (selectedVessel ? vessels[selectedVessel].color : 'var(--grid-line)')
+                  }`,
+                  borderRadius: "4px",
+                  fontSize: "16px", 
+                  color: "var(--text-secondary)",
+                  lineHeight: "1.6"
+                }}>
+                  <strong style={{ color: "var(--text-primary)" }}>Summary: </strong> 
+                  {getNarrativeText()}
+                </div>
 
                 {/* WHAT-IF SLIDER */}
                 {predictionResult && selectedExplanation && selectedExplanation.top_features.length > 0 ? (
@@ -521,9 +533,11 @@ export default function App() {
                     ))
                   ) : (
                     <div style={{ padding: "24px", textAlign: "center", color: "var(--text-secondary)", fontSize: "14px" }}>
-                      {predictionResult
-                        ? "SHAP explanation unavailable while real model artifacts are not loaded."
-                        : "Run a prediction to view SHAP analysis."}
+                      {!predictionResult
+                        ? "Run a prediction to view SHAP analysis."
+                        : (!showGlobalView && !selectedVessel)
+                        ? "Select a vessel to view its SHAP analysis."
+                        : "SHAP explanation unavailable while real model artifacts are not loaded."}
                     </div>
                   )}
                 </div>
